@@ -447,6 +447,21 @@ button.mini+button.mini{margin-left:6px}
 @keyframes glintCinematic{0%,100%{opacity:.12;transform:scale(.45)}35%{opacity:1;transform:scale(1.5)}55%{opacity:.65;transform:scale(.9)}}
 @keyframes dramaticFlash{0%{opacity:0}10%{opacity:.7}24%{opacity:0}100%{opacity:0}}
 
+
+/* ---------- CHAPTER SELECTOR: all 25 chapters visible, sequentially locked ---------- */
+.chapter-panel{margin-top:14px;padding:14px;background:rgba(12,15,22,.94);border:1px solid rgba(255,255,255,.14);border-radius:14px}
+.chapter-panel h3{margin:0 0 5px;font:800 17px/1.2 system-ui,"Nirmala UI",sans-serif;color:var(--accent);text-align:center}
+.chapter-panel .chapter-help{margin:0 0 12px;text-align:center;font:12px/1.45 system-ui,"Nirmala UI",sans-serif;color:var(--mute)}
+.chapter-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.chapter-btn{width:100%;min-height:52px;padding:8px 10px;border-radius:10px;text-align:left;font:700 13px/1.25 system-ui,"Nirmala UI",sans-serif;background:#20242f;border:1px solid #333a49}
+.chapter-btn .chapter-status{display:block;font-size:11px;font-weight:600;color:var(--mute);margin-top:3px}
+.chapter-btn.unlocked{border-color:#5b667b}
+.chapter-btn.current{border-color:var(--accent);box-shadow:0 0 0 1px rgba(224,168,74,.22);background:#2a2b34}
+.chapter-btn.locked{opacity:.5;cursor:not-allowed}
+.chapter-btn.completed{border-color:#4f8b63}
+.chapter-btn .lock{float:right}
+@media(max-width:420px){.chapter-grid{grid-template-columns:1fr}}
+
 </style>
 </head>
 <body>
@@ -1099,13 +1114,17 @@ function isVisible(sceneId, idx, c, s){
   return true;
 }
 
+function chapterPassed(chapter){
+  if(chapter<=0) return false;
+  if(chapter===1) return fetchKey("sunpur_passed_chapter_1")==="1" || fetchKey("sunpur_ch2")==="1";
+  return fetchKey("sunpur_passed_chapter_"+chapter)==="1";
+}
 function unlockNextChapter(chapter){
-  if (chapter>=2 && chapter<25) store("sunpur_chapter_"+(chapter+1),"1");
+  if (chapter>=1 && chapter<25) store("sunpur_chapter_"+(chapter+1),"1");
 }
 function chapterUnlocked(chapter){
-  if (chapter<=1) return true;
-  if (chapter===2) return fetchKey("sunpur_ch2")==="1";
-  return fetchKey("sunpur_chapter_"+chapter)==="1";
+  if (chapter===1) return true;
+  return fetchKey("sunpur_chapter_"+chapter)==="1" || chapterPassed(chapter-1);
 }
 
 /* ===== NO-PAID-HINT WRONG-CHOICE RULE =====
@@ -1180,10 +1199,11 @@ function choose(sceneId, idx){
   else if (s.nerve<=0) next = "broken";
   if (ENDINGS[next]){
     s.ending = next; saveEnding(next);
-    // Completing ANY ending completes the chapter and unlocks the next one.
-    // The player still sees every chapter, but locked chapters cannot be started.
+    // Reaching an ending means this chapter was successfully passed.
+    // Only the immediately next chapter becomes playable.
+    store("sunpur_passed_chapter_"+s.chapter,"1");
     if (s.chapter===1) store("sunpur_ch2","1");
-    if (s.chapter>=2) unlockNextChapter(s.chapter);
+    unlockNextChapter(s.chapter);
     playSound(ENDINGS[next].good ? "success" : "bad");
   } else {
     s.scene = next;
@@ -1380,20 +1400,6 @@ function header(){
   '<div class="sub">'+esc(tr(UI.sub))+' · '+esc(tr(UI.ch(S.chapter)))+'</div>';
 }
 
-
-/* ---------- CHAPTER SELECTOR: all 25 chapters visible, sequentially locked ---------- */
-.chapter-panel{margin-top:14px;padding:14px;background:rgba(12,15,22,.94);border:1px solid rgba(255,255,255,.14);border-radius:14px}
-.chapter-panel h3{margin:0 0 5px;font:800 17px/1.2 system-ui,"Nirmala UI",sans-serif;color:var(--accent);text-align:center}
-.chapter-panel .chapter-help{margin:0 0 12px;text-align:center;font:12px/1.45 system-ui,"Nirmala UI",sans-serif;color:var(--mute)}
-.chapter-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
-.chapter-btn{width:100%;min-height:52px;padding:8px 10px;border-radius:10px;text-align:left;font:700 13px/1.25 system-ui,"Nirmala UI",sans-serif;background:#20242f;border:1px solid #333a49}
-.chapter-btn .chapter-status{display:block;font-size:11px;font-weight:600;color:var(--mute);margin-top:3px}
-.chapter-btn.unlocked{border-color:#5b667b}
-.chapter-btn.current{border-color:var(--accent);box-shadow:0 0 0 1px rgba(224,168,74,.22);background:#2a2b34}
-.chapter-btn.locked{opacity:.5;cursor:not-allowed}
-.chapter-btn.completed{border-color:#4f8b63}
-.chapter-btn .lock{float:right}
-@media(max-width:420px){.chapter-grid{grid-template-columns:1fr}}
 
 /* ---------- SOUND ENGINE: environmental, scene-aware Web Audio ---------- */
 let soundOn = true;
@@ -1667,7 +1673,9 @@ function render(){
       (s.msg.length ? '<p class="msg">'+esc(s.msg.map(tr).join(" "))+'</p>' : '')+
       '<p class="story">'+esc(tr(e.text))+'</p>'+
       '<p class="small">'+esc(tr(UI.found(found,total)))+'</p>'+
-      '<div class="row"><button class="primary" id="again">'+esc(tr(UI.again))+'</button><button class="primary" id="share">'+esc(tr(UI.share))+'</button></div>'+
+      '<div class="row"><button class="primary" id="again">'+esc(tr(UI.again))+'</button><button class="primary" id="share">'+esc(tr(UI.share))+'</button>'+
+      (s.chapter < 25 ? '<button class="primary" id="nextChapter">▶ '+esc(tr(L("Continue to Chapter "+(s.chapter+1),"अध्याय "+(s.chapter+1)+" शुरू करो")))+'</button>' : '')+
+      '</div>'+
       renderChapterPanel(s.chapter)+
       '<div class="social-row">'+
         '<button class="social-facebook" id="share-facebook">Facebook</button>'+
@@ -1679,6 +1687,10 @@ function render(){
     document.getElementById("share").onclick = share;
     document.getElementById("share-facebook").onclick = shareFacebook;
     document.getElementById("share-whatsapp").onclick = shareWhatsApp;
+    if (s.chapter < 25) {
+      const nextBtn = document.getElementById("nextChapter");
+      if (nextBtn) nextBtn.onclick = ()=>startChapterAndSync(s.chapter+1);
+    }
     bindChapterPanel();
     setMood(s);
     s.prev = {health:s.health, food:s.food, nerve:s.nerve}; s.fresh = false; s.shake = false;
@@ -1791,16 +1803,39 @@ if (document.addEventListener) document.addEventListener("visibilitychange", ()=
   }
 });
 
+const CHAPTER_TITLES = {
+  1:{en:"The Night of Sunpur",hi:"सुनपुर की रात"},
+  2:{en:"Kalu's Ledger",hi:"कालू का हिसाब"},
+  3:{en:"The Empty Bus",hi:"खाली बस"},
+  4:{en:"The River That Runs Backward",hi:"उलटी बहती नदी"},
+  5:{en:"The Whispering Forest",hi:"फुसफुसाता जंगल"},
+  6:{en:"The Watchtower",hi:"चौकी का टावर"},
+  7:{en:"The Buried Station",hi:"दबी हुई स्टेशन"},
+  8:{en:"The School of Names",hi:"नामों का स्कूल"},
+  9:{en:"The Quarry",hi:"पत्थर की खदान"},
+  10:{en:"The Radio Tower",hi:"रेडियो टावर"},
+  11:{en:"The Night Train",hi:"रात की ट्रेन"},
+  12:{en:"The Flood Archive",hi:"बाढ़ का अभिलेख"},
+  13:{en:"The Silent Hospital",hi:"खामोश अस्पताल"},
+  14:{en:"The Underground Library",hi:"भूमिगत पुस्तकालय"},
+  15:{en:"The Festival That Never Ended",hi:"खत्म न होने वाला मेला"},
+  16:{en:"The Clockmaker's House",hi:"घड़ीसाज़ का घर"},
+  17:{en:"The Court Below",hi:"नीचे की अदालत"},
+  18:{en:"The Mirror House",hi:"आईनों का घर"},
+  19:{en:"The Dam's Heart",hi:"बाँध का दिल"},
+  20:{en:"The Mountain Shrine",hi:"पहाड़ी मंदिर"},
+  21:{en:"The Room Without a Door",hi:"बिना दरवाज़े का कमरा"},
+  22:{en:"The Storm",hi:"तूफ़ान"},
+  23:{en:"The Second Sunpur",hi:"दूसरा सुनपुर"},
+  24:{en:"Kalu's Last Secret",hi:"कालू का आख़िरी राज़"},
+  25:{en:"Dawn Beyond the Gate",hi:"फाटक के पार भोर"}
+};
 function chapterTitle(n){
-  if(n===1) return lang==="hi" ? "सुनपुर की रात" : "The Night of Sunpur";
-  if(n===2) return lang==="hi" ? "कालू का हिसाब" : "Kalu's Ledger";
-  const d=EXTRA_CHAPTERS.find(x=>x.n===n);
-  return d ? (lang==="hi" ? d.hi : d.en) : ("Chapter "+n);
+  const d=CHAPTER_TITLES[n];
+  return d ? d[lang==="hi" ? "hi" : "en"] : ("Chapter "+n);
 }
 function chapterIsCompleted(n){
-  if(n===1) return loadEndings().some(id=>/^end(?!2_)/.test(id) || id==="end_no_hint");
-  if(n===2) return loadEndings().some(id=>/^end2_/.test(id));
-  return loadEndings().some(id=>id===chapterScene(n,"truth") || id===chapterScene(n,"escape"));
+  return chapterPassed(n);
 }
 function chapterStatus(n){
   if(chapterIsCompleted(n)) return lang==="hi" ? "पूरा हुआ" : "Completed";
@@ -1808,19 +1843,20 @@ function chapterStatus(n){
   return lang==="hi" ? "लॉक — पिछला अध्याय पूरा करें" : "Locked — complete the previous chapter";
 }
 function renderChapterPanel(currentChapter){
-  let h='<div class="chapter-panel"><h3>'+esc(lang==="hi" ? "अध्याय 1–25" : "Chapters 1–25")+'</h3>'+
-    '<p class="chapter-help">'+esc(lang==="hi" ? "सभी अध्याय दिखाई दे रहे हैं। अगले अध्याय का लॉक तभी खुलेगा जब पिछला अध्याय पूरा होगा।" : "All chapters are visible. Each next chapter unlocks only after you complete the previous chapter.")+'</p>'+
+  let h='<section class="chapter-panel chapter-hub">'+
+    '<div class="chapter-hub-title">'+esc(lang==="hi" ? "अध्याय मानचित्र — 1 से 25" : "CHAPTER MAP — 1 to 25")+'</div>'+
+    '<p class="chapter-hub-note">'+esc(lang==="hi" ? "सभी 25 अध्याय हमेशा दिखाई देंगे। केवल पिछला अध्याय पास करने के बाद अगला अध्याय खेलने योग्य होगा।" : "All 25 chapters are always visible. A chapter becomes playable only after the immediately previous chapter is passed.")+'</p>'+
     '<div class="chapter-grid">';
   for(let n=1;n<=25;n++){
     const unlocked=chapterUnlocked(n), completed=chapterIsCompleted(n), current=n===currentChapter;
     const cls="chapter-btn "+(unlocked?"unlocked ":"locked ")+(completed?"completed ":"")+(current?"current":"");
     const status=chapterStatus(n);
     const lock=unlocked?"":"🔒 ";
-    h+='<button class="'+cls+'" data-chapter="'+n+'" '+(unlocked?"":"disabled")+'>'+
+    h+='<button type="button" class="'+cls+'" data-chapter="'+n+'" '+(unlocked?"":"disabled")+'>'+
        '<span>'+lock+esc((lang==="hi"?"अध्याय ":"Chapter ")+n+" — "+chapterTitle(n))+'</span>'+
        '<span class="chapter-status">'+esc(status)+'</span></button>';
   }
-  return h+'</div></div>';
+  return h+'</div></section>';
 }
 function bindChapterPanel(){
   document.querySelectorAll(".chapter-btn[data-chapter]").forEach(b=>{
@@ -1828,6 +1864,18 @@ function bindChapterPanel(){
     b.onclick=()=>startChapterAndSync(Number(b.dataset.chapter));
   });
 }
+
+function migrateChapterProgress(){
+  try{
+    if(fetchKey("sunpur_ch2")==="1") store("sunpur_passed_chapter_1","1");
+    for(let n=3;n<=25;n++){
+      if(fetchKey("sunpur_chapter_"+n)==="1"){
+        store("sunpur_passed_chapter_"+(n-1),"1");
+      }
+    }
+  }catch(e){}
+}
+migrateChapterProgress();
 
 function showStartScreen(){
   const app=document.getElementById("app");
