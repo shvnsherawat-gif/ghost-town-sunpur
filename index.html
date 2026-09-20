@@ -433,7 +433,7 @@ button.mini+button.mini{margin-left:6px}
 <script>
 /* ============ CONFIG (edit these) ============ */
 const CONFIG = {
-  /* Hint economy: exactly 1 free hint for a player, then 2 hints per ₹10 purchase. */
+  /* Hint economy: exactly 1 free hint per chapter, then 2 hints per ₹10 purchase. */
   FREE_HINTS: 1,
   EXTRA_HINTS_PER_PURCHASE: 2,
   HINT_PRICE_RUPEES: 10,
@@ -514,7 +514,7 @@ const UI = {
   found: (a,b)=>L("Endings found: "+a+" of "+b+". Try again and find a better one.","मिले अंत: "+a+" / "+b+"। फिर खेलो और बेहतर अंत ढूँढो।"),
   copied: L("Copied. Paste it in WhatsApp.","कॉपी हो गया। WhatsApp में चिपकाओ।"),
   hint: n => L("Hint ("+n+" left)","संकेत ("+n+" बचे)"),
-  nohints: L("Your free hint has been used. Pay ₹10 for 2 more hints.","आपका मुफ़्त संकेत इस्तेमाल हो चुका है। 2 और संकेतों के लिए ₹10 दें।"),
+  nohints: L("Your free hint for this chapter has been used. Pay ₹10 for 2 more hints.","इस अध्याय का मुफ़्त संकेत इस्तेमाल हो चुका है। 2 और संकेतों के लिए ₹10 दें।"),
   buy: L("Get 2 hints — ₹10","2 संकेत पाएं — ₹10"),
   paid: L("Check payment","भुगतान जाँचें"),
   paymentStarting: L("Opening Razorpay secure checkout…","Razorpay सुरक्षित भुगतान खोला जा रहा है…"),
@@ -1024,7 +1024,7 @@ function newGame(chapter){
   S = {chapter, scene, health: chapter===1 ? 10 : 8, food:chapter>=3 ? 6 : 5,
        nerve:chapter>=3 ? 8 : 7, turn:0, inv:[], flags:{}, msg:[], hint:null,
        hintsUsed:0, extraHints:0, hintNote:null, ending:null, prev:null, fresh:true,
-       paidHintsConsumed:0, paymentCode:null, playerId:(getPlayerId() || ""), freeHintAvailable:true, serverHintsReady:false,
+       paidHintsConsumed:0, paymentCode:null, playerId:(getPlayerId() || ""), freeHintAvailable:false, serverHintsReady:false,
        shake:false, difficulty};
   render();
 }
@@ -1111,8 +1111,8 @@ function getPlayerId(){
 }
 
 // Start a chapter locally, then immediately re-read the server-side hint state.
-// newGame() intentionally resets the local UI state, so chapter/replay buttons
-// must sync afterward to avoid showing a stale "1 left" hint count.
+// The server owns the free-hint balance per chapter, so replaying a chapter
+// never creates another free hint.
 async function startChapterAndSync(chapter){
   newGame(chapter);
   if(CONFIG.SUPABASE_READY){
@@ -1125,6 +1125,7 @@ async function hintApi(action, orderId){
   if (!CONFIG.SUPABASE_READY) throw new Error("setup");
   const headers = await authHeaders(orderId ? {"x-sunpur-order-id":orderId} : {});
   const payload = {action};
+  if (action === "state" || action === "consume_free") payload.chapter = S?.chapter || 1;
   if(orderId) payload.order_id = orderId;
   const res = await fetch(CONFIG.SUPABASE_FN(CONFIG.HINT_API_FUNCTION), {
     method:"POST", headers, body:JSON.stringify(payload)
@@ -1559,7 +1560,7 @@ function render(){
   }
   if (window.updateGhostTownScene) window.updateGhostTownScene(s.scene);
   const sc = SCENES[s.scene];
-  const left = s.freeHintAvailable ? 1 : Math.max(0, s.extraHints);
+  const left = (s.freeHintAvailable ? 1 : 0) + Math.max(0, s.extraHints);
   const bellIcon = (s.scene==="midnight" || s.scene==="temple") ? '<span class="bellicon">🔔</span> ' : '';
   let html = header()+
     '<div class="stats">'+bar(UI.health,"health",s.health,pv.health)+bar(UI.food,"food",s.food,pv.food)+bar(UI.nerve,"nerve",s.nerve,pv.nerve)+'</div>'+
