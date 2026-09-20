@@ -1249,45 +1249,39 @@ async function startHintPurchase(){
   const show=t=>{ if(note) note.textContent=t; };
   if(!CONFIG.SUPABASE_READY){ show(tr(UI.codeSetup)); return; }
   if(btn) btn.disabled=true;
-  show("Connecting to the secure payment service…");
-
-  // Open the popup synchronously from the click so the browser allows it.
-  // It stays blank until the server returns the real Razorpay URL.
-  let paymentWindow=null;
-  try{ paymentWindow=window.open("about:blank","_blank","noopener,noreferrer"); }catch(_e){}
+  show("Creating a secure payment link…");
 
   try{
-    // Make sure we have a real Supabase user JWT before making the Edge
-    // Function request. The previous version could stop here, which created
-    // exactly the observed "no invocation" symptom.
+    // IMPORTANT: do not open about:blank here. A blank popup can make it look
+    // like Razorpay opened while the request never reached Supabase.
     const session=await ensureSupabaseSession();
     if(!session?.access_token) throw new Error("no_access_token");
 
-    // Use supabase-js so the current user JWT is automatically sent in
-    // Authorization and the public project key is sent in apikey.
-    const result=await sb.functions.invoke(CONFIG.CREATE_ORDER_FUNCTION, {
-      body:{amount:CONFIG.HINT_PRICE_RUPEES}
+    const endpoint=CONFIG.SUPABASE_FN(CONFIG.CREATE_ORDER_FUNCTION);
+    const res=await fetch(endpoint, {
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "apikey":CONFIG.SUPABASE_ANON_KEY,
+        "Authorization":"Bearer "+session.access_token
+      },
+      body:JSON.stringify({amount:CONFIG.HINT_PRICE_RUPEES}),
+      cache:"no-store"
     });
 
-    if(result.error){
-      let detail=result.error.message || "create-hint-order_failed";
-      try{
-        if(result.error.context && typeof result.error.context.json === "function"){
-          const body=await result.error.context.json();
-          if(body?.error) detail=String(body.error);
-        }
-      }catch(_e){}
-      console.error("Sunpur create-hint-order failure:",result.error);
-      if(paymentWindow && !paymentWindow.closed) paymentWindow.close();
+    let data=null;
+    try{ data=await res.json(); }catch(_e){}
+
+    if(!res.ok){
+      const detail=(data && data.error) ? String(data.error) : ("HTTP "+res.status);
+      console.error("Sunpur create-hint-order HTTP failure:", res.status, data);
       show("Payment connection error: "+detail);
       if(btn) btn.disabled=false;
       return;
     }
 
-    const data=result.data;
     if(!data || !data.ok || !data.checkout_url || !data.order_id){
-      console.error("Sunpur invalid create-hint-order response:",data);
-      if(paymentWindow && !paymentWindow.closed) paymentWindow.close();
+      console.error("Sunpur invalid create-hint-order response:", data);
       show("Payment connection error: the payment link was not created.");
       if(btn) btn.disabled=false;
       return;
@@ -1295,29 +1289,14 @@ async function startHintPurchase(){
 
     S.pendingOrderId=data.order_id;
     store("sunpur_pending_order",data.order_id);
-    show(tr(UI.paymentWaiting));
 
-    if(paymentWindow && !paymentWindow.closed){
-      paymentWindow.location.href=data.checkout_url;
-    }else if(note){
-      // Popup was blocked: leave the game open and give the player a normal
-      // clickable link instead of silently failing.
-      note.textContent="Popup blocked. ";
-      const a=document.createElement("a");
-      a.href=data.checkout_url;
-      a.target="_blank";
-      a.rel="noopener noreferrer";
-      a.textContent="Open Razorpay checkout";
-      a.style.color="var(--accent)";
-      a.style.fontWeight="700";
-      note.appendChild(a);
-    }
-
-    await waitForPayment(data.order_id,show,btn);
+    // Navigate directly to the real Razorpay URL. This removes the blank-tab
+    // failure mode completely. When the player returns to the game, bootSunpur()
+    // checks the stored pending order against the server.
+    window.location.assign(data.checkout_url);
   }catch(e){
     const msg=e instanceof Error ? e.message : String(e);
     console.error("Sunpur payment flow failure:",e);
-    if(paymentWindow && !paymentWindow.closed) paymentWindow.close();
     show("Payment connection error: "+msg);
     if(btn) btn.disabled=false;
   }
