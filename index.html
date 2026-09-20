@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ghost Town: Sunpur</title>
+<style>
+:root{--bg:#0d0f14;--card:#171a22;--ink:#e8e6df;--mute:#8b8f9a;--accent:#e0a84a;--hp:#d9534f;--food:#e0a84a;--nerve:#6aa7e0;--line:#262a35}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Georgia,"Noto Serif Devanagari","Nirmala UI","Times New Roman",serif;line-height:1.6}
+.wrap{max-width:560px;margin:0 auto;padding:16px 16px 48px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+h1{font-size:20px;letter-spacing:.06em;margin:4px 0 2px;color:var(--accent)}
+.sub{color:var(--mute);font-size:13px;margin-bottom:12px;font-family:system-ui,"Nirmala UI",sans-serif}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px;font-family:system-ui,"Nirmala UI",sans-serif;font-size:12px;color:var(--mute)}
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:4px}
+.fill{height:100%;transition:width .3s}
+.meta{display:flex;justify-content:space-between;gap:8px;font-family:system-ui,"Nirmala UI",sans-serif;font-size:12px;color:var(--mute);margin-bottom:10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+h2{margin:0 0 8px;font-size:19px}
+p{margin:0 0 10px}
+.msg{color:var(--accent);font-style:italic}
+.hint{background:#1d2230;border-left:3px solid var(--nerve);padding:8px 10px;border-radius:6px;font-size:14px;font-family:system-ui,"Nirmala UI",sans-serif}
+.choices{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+button{font:inherit;color:var(--ink);background:#20242f;border:1px solid #333a49;border-radius:10px;padding:12px 14px;min-height:46px;text-align:left;cursor:pointer;width:100%}
+button:active{background:#2a3040}
+button:disabled{opacity:.45;cursor:not-allowed}
+button .need{display:block;font-family:system-ui,"Nirmala UI",sans-serif;font-size:12px;color:var(--mute);margin-top:2px}
+button.primary{background:var(--accent);color:#1a1405;border-color:var(--accent);text-align:center;font-weight:bold}
+button.mini{width:auto;min-height:34px;padding:6px 12px;font-size:13px;text-align:center;font-family:system-ui,"Nirmala UI",sans-serif}
+button.hintbtn{background:transparent;border-style:dashed;color:var(--nerve);text-align:center;font-size:14px;margin-top:4px}
+.stars{color:var(--accent);font-size:22px;letter-spacing:2px;margin-bottom:6px}
+.small{font-family:system-ui,"Nirmala UI",sans-serif;font-size:12px;color:var(--mute)}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.row button{text-align:center;flex:1 1 140px}
+</style>
+</head>
+<body>
+<div class="wrap"><div id="app"></div></div>
+
+<script>
+/* ============ CONFIG (edit these) ============ */
+const CONFIG = {
+  FREE_HINTS: 3,          // free hints per playthrough
+  UPI_ID: "8383028896@pthdfc",
+  MERCHANT_NAME: "Ghost Town Sunpur",
+  HINT_PACKAGES: [
+    { amount: 10, hints: 3 },
+    { amount: 20, hints: 7 },
+    { amount: 50, hints: 20 }
+  ]
+};
+
+/* ============ BILINGUAL HELPERS ============ */
+const L = (en, hi) => ({en, hi});
+let lang = "en";
+const tr = x => (x && (x[lang] || x.en)) || "";
+const ITEM_HI = {"Brass key":"पीतल की चाबी","Rope":"रस्सी","Lantern":"लालटेन","Lit lantern":"जलती लालटेन","Matchbox":"माचिस","Iron key":"लोहे की चाबी","Logbook":"लॉगबुक","Photograph":"तस्वीर"};
+const itemName = i => lang==="hi" ? (ITEM_HI[i]||i) : i;
+
+const UI = {
+  title: L("Ghost Town: Sunpur","घोस्ट टाउन: सुनपुर"),
+  sub: L("A text survival game. Survive until dawn, or find out what happened here.","एक टेक्स्ट सर्वाइवल गेम। भोर तक ज़िंदा रहो, या पता लगाओ यहाँ क्या हुआ था।"),
+  health: L("Health","सेहत"), food: L("Food","भोजन"), nerve: L("Nerve","हिम्मत"),
+  carrying: L("Carrying: ","पास में: "), nothing: L("nothing","कुछ नहीं"),
+  ch: n => L("Chapter "+n,"अध्याय "+n),
+  again: L("Play again","फिर खेलो"), share: L("Share result","नतीजा शेयर करो"),
+  next: L("Continue to Chapter 2","अध्याय 2 शुरू करो"), ch1: L("Chapter 1","अध्याय 1"),
+  found: (a,b)=>L("Endings found: "+a+" of "+b+". Try again and find a better one.","मिले अंत: "+a+" / "+b+"। फिर खेलो और बेहतर अंत ढूँढो।"),
+  copied: L("Copied. Paste it in WhatsApp.","कॉपी हो गया। WhatsApp में चिपकाओ।"),
+  hint: n => L("Hint ("+n+" left)","संकेत ("+n+" बचे)"),
+  nohints: L("No free hints left this run.","इस बार के मुफ़्त संकेत खत्म हो गए।"),
+  buy: L("Buy more hints","और संकेत खरीदो"),
+  paid: L("I've paid, give me hints","मैंने भुगतान कर दिया, संकेत दो"),
+  packages: L("Choose a hint package","संकेत पैकेज चुनें"),
+  package: (amount, hints) => L("₹"+amount+" for "+hints+" hints","₹"+amount+" में "+hints+" संकेत"),
+  paidFor: (amount, hints) => L("I paid ₹"+amount+" for "+hints+" hints","मैंने ₹"+amount+" में "+hints+" संकेतों का भुगतान किया"),
+  growl: L("Your stomach growls.","पेट में भूख कुलबुलाती है।")
+};
+
+/* ============ ENDINGS ============ */
+const ENDINGS = {
+  end_bell_diya:{stars:5, good:true, title:L("Dawn in Sunpur","सुनपुर की भोर"), text:L("The diya burns steady in the temple as you ring the bell three times. The watchman lowers his lantern, smiles for the first time in decades, and turns to mist. As the sun rises, the fog burns away and you see the road clearly. Behind you, the village looks like a place people once loved, not a place they ran from. You walk out slowly, unafraid.","मंदिर में दिया स्थिर जल रहा है, और तुम घंटी तीन बार बजाते हो। चौकीदार अपनी लालटेन नीचे करता है, दशकों में पहली बार मुस्कुराता है, और धुंध बनकर घुल जाता है। सूरज उगता है, कोहरा छँट जाता है और सड़क साफ़ दिखने लगती है। पीछे गाँव अब ऐसी जगह लगता है जिसे लोग कभी प्यार करते थे, ऐसी जगह नहीं जिससे वे भागे थे। तुम धीरे-धीरे, बिना डरे बाहर निकल जाते हो।")},
+  end_peace:{stars:4, good:true, title:L("The Watchman's Rest","चौकीदार का विश्राम"), text:L("You tell Kalu that everyone reached safety because of him. His shoulders drop as if a weight has finally been lifted. He bows once, sets his lantern on the ground, and vanishes. The bell rings a last time on its own. At dawn, the fog is gone.","तुम कालू से कहते हो कि उसी की वजह से सब सुरक्षित पहुँचे। उसके कंधे ढीले पड़ जाते हैं, जैसे कोई बोझ उतर गया हो। वह एक बार झुकता है, लालटेन ज़मीन पर रखता है और ओझल हो जाता है। घंटी आख़िरी बार अपने आप बजती है। भोर तक कोहरा छँट चुका होता है।")},
+  end_bell:{stars:3, good:true, title:L("Three Rings","तीन घंटियाँ"), text:L("You reach the temple and ring the bell three times. The watchman stops at the threshold of the shrine, nods, and fades. The fog stays until sunrise, and the temple feels colder without light in the diya. You survive, though you always wonder if he was truly at peace.","तुम मंदिर पहुँचकर घंटी तीन बार बजाते हो। चौकीदार गर्भगृह की देहरी पर रुकता है, सिर हिलाता है और ओझल हो जाता है। कोहरा सूरज उगने तक रहता है, और दिया बुझा होने से मंदिर कुछ ज़्यादा ठंडा लगता है। तुम बच जाते हो, पर सोचते रह जाते हो कि उसे सचमुच शांति मिली या नहीं।")},
+  end_pointed:{stars:2, title:L("Pointed to the Gate","फाटक की ओर इशारा"), text:L("You have no idea what to say. The watchman lifts his lantern and points at the gate. The chain falls away by itself. You walk out into the fog, alive, but you never learn why the village is empty or who was waiting for you.","तुम्हें समझ नहीं आता कि क्या कहो। चौकीदार अपनी लालटेन उठाकर फाटक की ओर इशारा करता है। ज़ंजीर अपने आप गिर जाती है। तुम कोहरे में निकल जाते हो, ज़िंदा, पर कभी नहीं जान पाते कि गाँव खाली क्यों है या तुम्हारा इंतज़ार कौन कर रहा था।")},
+  end_out:{stars:2, title:L("Out of the Fog","कोहरे के पार"), text:L("You leave before night falls. The fog parts just enough to let you through, and the village disappears behind you. You are alive, but you never learned the story of Sunpur, and some nights you still hear a bell.","रात होने से पहले तुम निकल जाते हो। कोहरा इतना खुल जाता है कि तुम निकल सको, और गाँव पीछे गुम हो जाता है। तुम ज़िंदा हो, पर सुनपुर की कहानी कभी नहीं जान पाए, और कुछ रातों को अब भी एक घंटी सुनाई देती है।")},
+  end_lost_fog:{stars:1, title:L("Lost in the Fog","कोहरे में गुम"), text:L("You leave weak and shaken. The fog closes in, every direction looks the same, and the road never seems to end. Someone finds your torn shirt on the highway weeks later, but never finds you.","तुम कमज़ोर और सहमे हुए निकलते हो। कोहरा घिर आता है, हर दिशा एक-सी लगती है, और सड़क खत्म ही नहीं होती। हफ़्तों बाद हाईवे पर तुम्हारी फटी कमीज़ मिलती है, पर तुम कभी नहीं मिलते।")},
+  end_lost:{stars:1, title:L("Swallowed by Fog","कोहरा निगल गया"), text:L("You run for the gate at midnight. The fog is faster than you, and it fills your lungs with cold. The last thing you hear is a bell.","आधी रात को तुम फाटक की ओर भागते हो। कोहरा तुमसे तेज़ है, और तुम्हारे फेफड़ों में ठंड भर देता है। आख़िरी चीज़ जो तुम सुनते हो, वह एक घंटी है।")},
+  end_hidden:{stars:1, title:L("The Village Keeps You","गाँव ने रख लिया"), text:L("You hide in the haveli until dawn. The ringing stops, and when you try to leave, every door is barred from outside. The village keeps what it finds.","तुम भोर तक हवेली में छिपे रहते हो। घंटी थम जाती है, और जब तुम निकलना चाहते हो तो हर दरवाज़ा बाहर से बंद मिलता है। गाँव जो पाता है, उसे रख लेता है।")},
+  end_frozen:{stars:1, title:L("Words Fail","शब्द नहीं मिले"), text:L("You open your mouth to speak, but your nerve is gone and only a squeak comes out. The watchman tilts his head, disappointed, and walks past you. The fog follows him. You wake at dawn, alive but hollow, with no memory of the night.","तुम बोलने को मुँह खोलते हो, पर हिम्मत जवाब दे चुकी है और सिर्फ़ एक चीख़-सी निकलती है। चौकीदार सिर टेढ़ा करके निराशा से देखता है और तुम्हारे पास से गुज़र जाता है। कोहरा उसके पीछे चला जाता है। भोर में तुम जागते हो, ज़िंदा पर खोखले, और रात की कोई याद नहीं।")},
+  dead_hurt:{stars:0, title:L("Too Wounded","बहुत घायल"), text:L("Your injuries are too much. You sit down against the cold wall to rest, and the bell rings gently as the light fades.","चोटें तुम्हारी सहनशक्ति से ज़्यादा हैं। तुम आराम करने के लिए ठंडी दीवार से टिककर बैठ जाते हो, और रोशनी मद्धम होते ही घंटी धीरे से बजती है।")},
+  starved:{stars:0, title:L("Hunger Wins","भूख जीत गई"), text:L("Hunger has made your legs weak and your mind blurry. You sit down and cannot get up. The village is very quiet.","भूख ने तुम्हारी टाँगें कमज़ोर और दिमाग़ धुँधला कर दिया है। तुम बैठ जाते हो और उठ नहीं पाते। गाँव बहुत शांत है।")},
+  broken:{stars:0, title:L("Nerve Breaks","हिम्मत टूट गई"), text:L("Every sound is a footstep, every shadow a face. You run screaming into the dark, and you don't stop running. The village never sees you again.","हर आवाज़ किसी के क़दम लगती है, हर परछाईं कोई चेहरा। तुम चीख़ते हुए अँधेरे में भाग पड़ते हो, और रुकते नहीं। गाँव तुम्हें फिर कभी नहीं देखता।")},
+  /* chapter 2 */
+  end2_full:{stars:5, title:L("The Record and the Rest","सबूत और शांति"), text:L("You hand the logbook to a district magistrate, and within a month Sunpur's families are found, named, and compensated. On the same day, someone repaints the wall behind the temple and hangs a garland beneath the photograph. On the anniversary, Kalu's bell rings once, softly, and nobody is afraid of it.","तुम लॉगबुक ज़िला मजिस्ट्रेट को सौंपते हो, और एक महीने में सुनपुर के परिवारों को ढूँढा, पहचाना और मुआवज़ा दिया जाता है। उसी दिन कोई मंदिर के पीछे की दीवार रँग देता है और तस्वीर के नीचे माला टाँग देता है। बरसी पर कालू की घंटी एक बार धीरे से बजती है, और उससे कोई नहीं डरता।")},
+  end2_record:{stars:4, title:L("The Record","सबूत"), text:L("The logbook reaches the right hands, and the truth about the flood is finally public. The families are compensated, but Kalu's face never appears in any report, and the shrine stays bare.","लॉगबुक सही हाथों तक पहुँचती है और बाढ़ की सच्चाई आख़िरकार सबके सामने आती है। परिवारों को मुआवज़ा मिलता है, पर किसी रिपोर्ट में कालू का चेहरा नहीं आता, और वह चबूतरा सूना ही रहता है।")},
+  end2_photo:{stars:3, title:L("A Face for the Name","नाम को चेहरा"), text:L("Kalu's family is honoured in the village's memory, but with no proof of what happened, the official story never changes. People visit the shrine, but nobody is held to account.","गाँव की स्मृति में कालू के परिवार को सम्मान मिलता है, पर सबूत के बिना सरकारी कहानी नहीं बदलती। लोग उस स्थान पर आते हैं, पर किसी से जवाब नहीं माँगा जाता।")},
+  end2_nothing:{stars:2, title:L("Just a Story","बस एक कहानी"), text:L("You board the bus with nothing but a tale. People listen politely at chai stalls, then change the subject. Sunpur stays what it was, a village that people say is haunted.","तुम बस में सिर्फ़ एक कहानी लेकर चढ़ते हो। चाय की दुकानों पर लोग शिष्टता से सुनते हैं, फिर बात बदल देते हैं। सुनपुर वही रहता है जो था: एक गाँव, जिसे लोग भुतहा कहते हैं।")}
+};
+
+const RANDOM_EVENTS = [
+  L("A door closes somewhere behind you.","कहीं पीछे एक दरवाज़ा बंद होता है।"),
+  L("You hear a child humming, then silence.","किसी बच्चे के गुनगुनाने की आवाज़ आती है, फिर सन्नाटा।"),
+  L("Your shadow moves half a second late.","तुम्हारी परछाईं आधे पल देर से हिलती है।"),
+  L("Something taps on the wall, three times.","दीवार पर तीन बार कोई थपथपाता है।"),
+  L("The wind smells of wet earth and old smoke.","हवा में गीली मिट्टी और पुराने धुएँ की गंध है।")
+];
+
+/* ============ SCENES ============ */
+const has = (s,i)=>s.inv.includes(i);
+const needItem = (...items)=> s => {
+  const m = items.filter(i=>!has(s,i));
+  return m.length ? L("needs: "+m.join(", "), "चाहिए: "+m.map(i=>ITEM_HI[i]||i).join(", ")) : null;
+};
+const gateResult = s => (s.nerve>=4 && s.food>=3) ? "end_out" : "end_lost_fog";
+const c2end = s => (has(s,"Logbook") && s.flags.photo_placed) ? "end2_full" : has(s,"Logbook") ? "end2_record" : s.flags.photo_placed ? "end2_photo" : "end2_nothing";
+
+const SCENES = {
+  courtyard:{
+    title:L("The Courtyard","आँगन"),
+    text:s=>L("You wake on cold stone as the sun sinks behind the hills. The village of Sunpur is silent. No dogs, no smoke. A crooked haveli looms ahead, a well sits in the corner, a rusted gate is at the far end, and a small temple stands beyond a broken wall. Somewhere, very faintly, a bell rings once.",
+      "ढलते सूरज के साथ तुम ठंडे पत्थर पर जागते हो। सुनपुर गाँव में सन्नाटा है। न कुत्ते भौंकते हैं, न कहीं धुआँ। सामने एक टेढ़ी हवेली है, कोने में कुआँ, दूर छोर पर जंग लगा फाटक, और टूटी दीवार के पार एक छोटा मंदिर। कहीं बहुत दूर से एक घंटी की हल्की सी आवाज़ आती है।"),
+    choices:[
+      {t:L("Look into the well","कुएँ में झाँको"), to:"well", nav:true},
+      {t:L("Enter the haveli","हवेली में जाओ"), to:"hall", nav:true},
+      {t:L("Go to the gate","फाटक की ओर जाओ"), to:"gate", nav:true},
+      {t:L("Follow the sound of the bell","घंटी की आवाज़ के पीछे जाओ"), to:"temple", nav:true}
+    ]
+  },
+  well:{
+    title:L("The Well","कुआँ"),
+    text:s=>L("The well is deep. A bucket hangs from a frayed rope, and something glints under the dark water.","कुआँ गहरा है। एक बाल्टी घिसी हुई रस्सी से लटकी है, और काले पानी के नीचे कुछ चमक रहा है।"),
+    choices:[
+      {t:L("Drink some water","थोड़ा पानी पियो"), once:true, fx:{food:2, nerve:-1}, msg:L("It tastes of iron. Your reflection blinks a moment late.","पानी में लोहे का स्वाद है। तुम्हारी परछाईं पल भर देर से पलक झपकती है।"), to:"well"},
+      {t:L("Fish out the glinting object","चमकती चीज़ निकालो"), once:true, give:"Brass key", fx:{nerve:-1}, msg:L("You pull up a heavy brass key. For a second, something cold holds the other end of the rope.","तुम एक भारी पीतल की चाबी खींच लाते हो। एक पल के लिए कोई ठंडा हाथ रस्सी का दूसरा सिरा थामे रहता है।"), to:"well"},
+      {t:L("Cut the rope and take it","रस्सी काटकर रख लो"), once:true, give:"Rope", msg:L("Good, strong rope. It could help you climb.","मज़बूत रस्सी है। चढ़ने में काम आ सकती है।"), to:"well"},
+      {t:L("Back to the courtyard","आँगन में लौटो"), to:"courtyard", nav:true}
+    ]
+  },
+  hall:{
+    title:L("The Haveli Hall","हवेली का हॉल"),
+    text:s=> has(s,"Lit lantern")
+      ? L("Your lantern throws golden light over peeling murals, a wooden staircase, and a kitchen door. The dust on the floor has fresh footprints. They are small.","तुम्हारी लालटेन की सुनहरी रोशनी उखड़ते भित्तिचित्रों, लकड़ी की सीढ़ी और रसोई के दरवाज़े पर पड़ती है। फ़र्श की धूल में ताज़ा पैरों के निशान हैं। बहुत छोटे।")
+      : L("It's pitch dark inside. You feel dust, cobwebs, and a staircase under your hand. Something shifts near your feet.","अंदर घुप्प अँधेरा है। हाथ में धूल, जाले और सीढ़ी का किनारा आता है। पैरों के पास कुछ सरकता है।"),
+    choices:[
+      {t:L("Search the shelves","अलमारियाँ टटोलो"), once:true, give:"Lantern", msg:L("You find an old brass lantern, cold and empty of light.","एक पुरानी पीतल की लालटेन मिलती है, ठंडी और बिना रोशनी की।"), to:"hall"},
+      {t:L("Light the lantern","लालटेन जलाओ"), need:s=> (has(s,"Lantern")&&has(s,"Matchbox")) ? null : L("needs: Lantern and Matchbox","चाहिए: लालटेन और माचिस"), hideIf:s=>has(s,"Lit lantern"), take:"Lantern", give:"Lit lantern", fx:{nerve:1}, msg:L("The flame catches. The dark backs away.","लौ पकड़ लेती है। अँधेरा पीछे हट जाता है।"), to:"hall"},
+      {t:L("Go into the kitchen","रसोई में जाओ"), to:"kitchen", nav:true},
+      {t:L("Climb the stairs","सीढ़ियाँ चढ़ो"), need:needItem("Lit lantern"), to:"upstairs", nav:true},
+      {t:L("Back to the courtyard","आँगन में लौटो"), to:"courtyard", nav:true}
+    ]
+  },
+  kitchen:{
+    title:L("The Kitchen","रसोई"),
+    text:s=>L("Clay pots, a cold chulha, and jars lined on a shelf. Everything is thick with dust, but one sealed jar of pickle looks untouched.","मिट्टी के बर्तन, ठंडा चूल्हा और अलमारी पर कतार में रखे मर्तबान। सब पर धूल की मोटी परत है, पर एक बंद अचार का मर्तबान अछूता लगता है।"),
+    choices:[
+      {t:L("Open the pickle jar","अचार का मर्तबान खोलो"), once:true, fx:{food:3, nerve:1}, msg:L("Sour, salty, oddly comforting. It tastes like someone's grandmother.","खट्टा, नमकीन, अजीब तरह से अपना-सा। जैसे किसी की दादी का बनाया हो।"), to:"kitchen"},
+      {t:L("Take the matchbox from the shelf","अलमारी से माचिस लो"), once:true, give:"Matchbox", msg:L("Half full, and the matches are dry.","आधी भरी है, और तीलियाँ सूखी हैं।"), to:"kitchen"},
+      {t:L("Eat the stale rotis","बासी रोटियाँ खाओ"), once:true, fx:{food:1, health:-3}, msg:L("Bad idea. Your stomach twists.","बुरा फ़ैसला। पेट में मरोड़ उठती है।"), to:"kitchen"},
+      {t:L("Back to the hall","हॉल में लौटो"), to:"hall", nav:true}
+    ]
+  },
+  upstairs:{
+    title:L("The Child's Room","बच्चे का कमरा"),
+    text:s=>L("A charpai, a cracked slate, and a diary tied with red thread. On the wall, in charcoal, are hundreds of tally marks and one line: \"The watchman waits for someone to ring the bell.\"","एक चारपाई, टूटी स्लेट और लाल धागे से बँधी एक डायरी। दीवार पर कोयले से सैकड़ों लकीरें खिंची हैं और एक पंक्ति लिखी है: \"चौकीदार इंतज़ार कर रहा है कि कोई घंटी बजाए।\""),
+    choices:[
+      {t:L("Read the diary","डायरी पढ़ो"), once:true, set:"diary", fx:{nerve:1}, msg:L("Sunpur was emptied overnight when the dam gates opened. Kalu the watchman rang the temple bell to warn everyone and got them all out, but he never came down from the temple himself. The last line: \"If anyone finds this, tell him he can rest. Ring the bell three times.\"","बाँध के फाटक खुलने पर सुनपुर एक रात में खाली हो गया। चौकीदार कालू ने मंदिर की घंटी बजाकर सबको चेताया और सबको निकाल दिया, पर वह खुद कभी मंदिर से नीचे नहीं उतरा। आख़िरी पंक्ति: \"अगर किसी को यह मिले, तो उससे कहना कि वह अब आराम कर सकता है। घंटी तीन बार बजाना।\""), to:"upstairs"},
+      {t:L("Back to the hall","हॉल में लौटो"), to:"hall", nav:true}
+    ]
+  },
+  temple:{
+    title:L("The Small Temple","छोटा मंदिर"),
+    text:s=>L("A tiny temple with a cracked stone deity, an unlit diya, and a brass bell hanging from a beam. Marigolds lie at the deity's feet, and they are still wet.","एक छोटा-सा मंदिर, जिसमें चटकी हुई पत्थर की मूर्ति है, एक बुझा हुआ दिया, और धरन से लटकी पीतल की घंटी। मूर्ति के चरणों में गेंदे के फूल पड़े हैं, और वे अब भी गीले हैं।"),
+    choices:[
+      {t:L("Light the diya","दिया जलाओ"), once:true, need:needItem("Matchbox"), set:"diya", fx:{nerve:2}, msg:L("The flame steadies. For the first time, the village feels less empty.","लौ स्थिर हो जाती है। पहली बार गाँव कुछ कम खाली लगता है।"), to:"temple"},
+      {t:L("Pray quietly","चुपचाप प्रार्थना करो"), once:true, fx:{nerve:1}, msg:L("Whoever you pray to, it helps to say it out loud.","जिससे भी प्रार्थना करो, ज़ोर से बोलने पर मन को सहारा मिलता है।"), to:"temple"},
+      {t:L("Ring the bell now","अभी घंटी बजाओ"), once:true, fx:{nerve:-2, turn:3}, set:"rang_early", msg:L("The sound rolls across the village. Something in the fog begins to move toward you. Time seems to have jumped.","आवाज़ पूरे गाँव में गूँज जाती है। कोहरे में कुछ तुम्हारी ओर बढ़ने लगता है। लगता है समय छलाँग लगा गया।"), to:"temple"},
+      {t:L("Back to the courtyard","आँगन में लौटो"), to:"courtyard", nav:true}
+    ]
+  },
+  gate:{
+    title:L("The Gate","फाटक"),
+    text:s=>L("A rusted iron gate, wrapped in chain. Beyond it a road disappears into a wall of white fog. The fog seems to lean toward you.","जंग लगा लोहे का फाटक, जिस पर ज़ंजीर लिपटी है। उसके पार सड़क सफ़ेद कोहरे की दीवार में खो जाती है। कोहरा तुम्हारी ओर झुकता-सा लगता है।"),
+    choices:[
+      {t:L("Unlock the gate and leave","फाटक खोलकर निकल जाओ"), need:needItem("Brass key"), to:gateResult},
+      {t:L("Climb over using the rope","रस्सी की मदद से ऊपर चढ़ो"), need:needItem("Rope"), to:gateResult},
+      {t:L("Shout for help","मदद के लिए चिल्लाओ"), once:true, fx:{nerve:-1}, msg:L("Your voice comes back in a different tone.","तुम्हारी आवाज़ बदली हुई लौटकर आती है।"), to:"gate"},
+      {t:L("Back to the courtyard","आँगन में लौटो"), to:"courtyard", nav:true}
+    ]
+  },
+  midnight:{
+    title:L("Midnight","आधी रात"),
+    text:s=>L("The bell begins to ring by itself. Fog crawls under the gate and fills the courtyard. From the temple steps, a tall figure with a lantern walks toward you. The watchman.","घंटी अपने आप बजने लगती है। फाटक के नीचे से कोहरा रेंगकर आँगन भर देता है। मंदिर की सीढ़ियों से लालटेन लिए एक लंबी आकृति तुम्हारी ओर आती है। चौकीदार।"),
+    choices:[
+      {t:L("Run to the temple and ring the bell three times","मंदिर की ओर दौड़ो और घंटी तीन बार बजाओ"), need:s=> s.flags.diary ? null : L("you don't know what the bell means yet","अभी तुम्हें घंटी का मतलब नहीं पता"), to:s=> s.flags.diya ? "end_bell_diya" : "end_bell"},
+      {t:L("Speak to him calmly","शांति से उससे बात करो"), to:s=> s.flags.diary ? (s.nerve>=3 ? "end_peace" : "end_frozen") : "end_pointed"},
+      {t:L("Hide in the haveli","हवेली में छिप जाओ"), fx:{health:-7}, to:"end_hidden"},
+      {t:L("Run for the gate","फाटक की ओर भागो"), need:s=> (has(s,"Brass key")||has(s,"Rope")) ? null : L("needs: Brass key or Rope","चाहिए: पीतल की चाबी या रस्सी"), to:"end_lost"}
+    ]
+  },
+  /* ---------- CHAPTER 2 ---------- */
+  c2_path:{
+    title:L("The Dry Path","सूखी पगडंडी"),
+    text:s=>L("Dawn. The fog has gone, and the village looks small and ordinary in the pale light. On the temple wall, fresh charcoal letters read: \"Thank you. Now finish what he started.\" A dry path splits three ways: up to the dam office on the ridge, down to the reservoir bank, and out to the old bus stop on the highway. You have until the noon bus.","भोर हो चुकी है। कोहरा जा चुका है, और पीली रोशनी में गाँव छोटा और साधारण लगता है। मंदिर की दीवार पर कोयले से ताज़ा लिखा है: \"धन्यवाद। अब वह काम पूरा करो जो उसने शुरू किया था।\" सूखी पगडंडी तीन ओर जाती है: ऊपर टीले पर बाँध का दफ़्तर, नीचे जलाशय का किनारा, और बाहर हाईवे पर पुराना बस स्टॉप। दोपहर की बस तक तुम्हारे पास समय है।"),
+    choices:[
+      {t:L("Climb to the dam office","बाँध के दफ़्तर की ओर चढ़ो"), to:"c2_office", nav:true},
+      {t:L("Go down to the reservoir bank","जलाशय के किनारे उतरो"), to:"c2_bank", nav:true},
+      {t:L("Visit Kalu's shrine behind the temple","मंदिर के पीछे कालू के स्थान पर जाओ"), to:"c2_shrine", nav:true},
+      {t:L("Walk to the bus stop","बस स्टॉप की ओर चलो"), to:"c2_bus", nav:true}
+    ]
+  },
+  c2_bank:{
+    title:L("Reservoir Bank","जलाशय का किनारा"),
+    text:s=>L("The reservoir is still and brown. A rusted sluice wheel sticks out of the mud beside stone steps, and something is wrapped around its spokes.","जलाशय शांत और भूरा है। कीचड़ में पत्थर की सीढ़ियों के पास एक जंग लगा स्लुइस-पहिया निकला है, और उसकी तीलियों में कुछ लिपटा है।"),
+    choices:[
+      {t:L("Free the object from the wheel","पहिये से लिपटी चीज़ छुड़ाओ"), once:true, give:"Iron key", msg:L("A small iron key, tied in oilcloth. \"OFFICE\" is scratched into it.","तेल-कपड़े में बँधी एक छोटी लोहे की चाबी। उस पर 'दफ़्तर' खुरचा हुआ है।"), to:"c2_bank"},
+      {t:L("Search the steps","सीढ़ियाँ टटोलो"), once:true, fx:{food:2}, msg:L("You find a rusted tiffin with dry chikki still sealed inside. Hard, but edible.","एक जंग लगा टिफ़िन मिलता है जिसमें सूखी चिक्की अब भी बंद है। सख़्त है, पर खाने लायक।"), to:"c2_bank"},
+      {t:L("Drink from the reservoir","जलाशय से पानी पियो"), once:true, fx:{food:1, health:-2}, msg:L("Muddy and foul. Your stomach protests.","गंदा और बदबूदार। पेट विरोध करता है।"), to:"c2_bank"},
+      {t:L("Back to the path","पगडंडी पर लौटो"), to:"c2_path", nav:true}
+    ]
+  },
+  c2_office:{
+    title:L("The Dam Office","बाँध का दफ़्तर"),
+    text:s=>L("A squat concrete building with a steel door. Through a cracked window you see desks buried in papers.","स्टील के दरवाज़े वाली एक ठिगनी कंक्रीट की इमारत। टूटी खिड़की से काग़ज़ों में दबी मेज़ें दिखती हैं।"),
+    choices:[
+      {t:L("Unlock the door and go in","दरवाज़ा खोलकर अंदर जाओ"), need:needItem("Iron key"), to:"c2_desk", nav:true},
+      {t:L("Back to the path","पगडंडी पर लौटो"), to:"c2_path", nav:true}
+    ]
+  },
+  c2_desk:{
+    title:L("Inside the Office","दफ़्तर के अंदर"),
+    text:s=>L("Papers everywhere. A logbook lies open on the desk, and a steel cabinet stands behind it.","हर तरफ़ काग़ज़। मेज़ पर एक लॉगबुक खुली पड़ी है, और उसके पीछे एक स्टील की अलमारी।"),
+    choices:[
+      {t:L("Read the logbook","लॉगबुक पढ़ो"), once:true, give:"Logbook", set:"truth", fx:{nerve:-1}, msg:L("\"03:10. Order from the district office: open all gates. Do not warn residents. 03:14. Watchman Kalu telephoned twice. No one answered. He rang the temple bell instead.\" You take the logbook. It is proof.","\"03:10. ज़िला दफ़्तर से आदेश: सभी फाटक खोल दो। निवासियों को मत बताओ। 03:14. चौकीदार कालू ने दो बार फ़ोन किया। किसी ने नहीं उठाया। उसने मंदिर की घंटी बजा दी।\" तुम लॉगबुक ले लेते हो। यह सबूत है।"), to:"c2_desk"},
+      {t:L("Open the steel cabinet","स्टील की अलमारी खोलो"), once:true, give:"Photograph", fx:{nerve:1}, msg:L("Inside is a framed photograph: a smiling family of four on temple steps. On the back: \"Kalu and family, Diwali.\"","अंदर एक फ़्रेम की हुई तस्वीर है: मंदिर की सीढ़ियों पर मुस्कुराता चार लोगों का परिवार। पीछे लिखा है: 'कालू और परिवार, दिवाली।'"), to:"c2_desk"},
+      {t:L("Back outside","बाहर निकलो"), to:"c2_office", nav:true}
+    ]
+  },
+  c2_shrine:{
+    title:L("Kalu's Shrine","कालू का स्थान"),
+    text:s=>L("Behind the temple is a small stone platform with a single nail in the wall where a frame could hang. Fresh marigolds lie below it.","मंदिर के पीछे एक छोटा पत्थर का चबूतरा है, जिसकी दीवार में एक अकेली कील है जहाँ कोई फ़्रेम टाँगा जा सकता है। नीचे ताज़े गेंदे के फूल हैं।"),
+    choices:[
+      {t:L("Hang the photograph on the nail","तस्वीर कील पर टाँगो"), once:true, need:needItem("Photograph"), take:"Photograph", set:"photo_placed", fx:{nerve:2}, msg:L("The family looks down at the village, together at last. The air feels lighter.","परिवार गाँव को देख रहा है, आख़िरकार साथ। हवा हल्की लगती है।"), to:"c2_shrine"},
+      {t:L("Sit quietly for a moment","कुछ पल चुपचाप बैठो"), once:true, fx:{nerve:1}, msg:L("You feel watched, but kindly.","लगता है कोई देख रहा है, पर स्नेह से।"), to:"c2_shrine"},
+      {t:L("Back to the path","पगडंडी पर लौटो"), to:"c2_path", nav:true}
+    ]
+  },
+  c2_bus:{
+    title:L("The Bus Stop","बस स्टॉप"),
+    text:s=> s.flags.bus_forced
+      ? L("The bus arrives with its horn blaring. The driver waves impatiently. You have to decide now.","बस हॉर्न बजाती हुई आ पहुँचती है। ड्राइवर बेसब्री से हाथ हिलाता है। अब फ़ैसला करना होगा।")
+      : L("The old bus stop on the highway. A rusted timetable says a bus stops here at noon. In the distance, an engine rumbles closer.","हाईवे पर पुराना बस स्टॉप। जंग लगी समय-सारणी कहती है कि यहाँ दोपहर में बस रुकती है। दूर से इंजन की आवाज़ पास आ रही है।"),
+    choices:[
+      {t:L("Board the bus","बस में चढ़ो"), to:c2end},
+      {t:L("Go back to the path","पगडंडी पर लौटो"), hideIf:s=>s.flags.bus_forced, to:"c2_path", nav:true}
+    ]
+  }
+};
+
+/* ============ HINTS ============ */
+const HINTS = {
+  courtyard:s=>L("Every place here holds something useful. Try the well, the haveli, and the temple before you think of leaving.","यहाँ हर जगह कुछ काम की चीज़ है। जाने की सोचने से पहले कुआँ, हवेली और मंदिर देखो।"),
+  well:s=>L("Two things are worth taking here: whatever glints under the water, and the rope.","यहाँ दो चीज़ें काम की हैं: पानी के नीचे की चमकती चीज़ और रस्सी।"),
+  hall:s=> !has(s,"Lantern") && !has(s,"Lit lantern") ? L("The shelves hold a lantern. You'll need light to go upstairs.","अलमारियों में एक लालटेन है। ऊपर जाने के लिए रोशनी चाहिए।")
+    : !has(s,"Lit lantern") ? L("You have a lantern but nothing to light it with. Try the kitchen.","लालटेन है पर जलाने को कुछ नहीं। रसोई देखो।")
+    : L("Now you have light. Go upstairs.","अब रोशनी है। ऊपर जाओ।"),
+  kitchen:s=>L("Sealed things last longer than open ones. And the matchbox will matter.","बंद चीज़ें खुली चीज़ों से ज़्यादा टिकती हैं। और माचिस काम आएगी।"),
+  upstairs:s=>L("The diary explains the whole village. Read it before midnight.","डायरी पूरे गाँव की कहानी बताती है। आधी रात से पहले पढ़ लो।"),
+  temple:s=>L("Light the diya, but don't ring the bell yet. Save it for later.","दिया जलाओ, पर अभी घंटी मत बजाओ। उसे बाद के लिए बचाओ।"),
+  gate:s=>L("Leaving now is possible, but you'll never learn the story. Stay until midnight for a better ending.","अभी जाना मुमकिन है, पर कहानी कभी नहीं जान पाओगे। बेहतर अंत के लिए आधी रात तक रुको।"),
+  midnight:s=>L("Knowing the story helps. The bell means something to him, and a lit diya makes it stronger.","कहानी जानना काम आता है। घंटी उसके लिए ख़ास है, और जलता दिया उसे और मज़बूत बनाता है।"),
+  c2_path:s=>L("Three places matter: the reservoir bank for a key, the office for proof, and the shrine for the photograph.","तीन जगहें ज़रूरी हैं: चाबी के लिए जलाशय का किनारा, सबूत के लिए दफ़्तर, और तस्वीर के लिए कालू का स्थान।"),
+  c2_bank:s=>L("The wheel holds the key to the office. The steps may hold food.","पहिये में दफ़्तर की चाबी है। सीढ़ियों पर खाना मिल सकता है।"),
+  c2_office:s=>L("You need the iron key from the reservoir bank.","तुम्हें जलाशय के किनारे वाली लोहे की चाबी चाहिए।"),
+  c2_desk:s=>L("The logbook is proof. The cabinet holds something personal.","लॉगबुक सबूत है। अलमारी में कुछ निजी है।"),
+  c2_shrine:s=>L("The photograph belongs on the nail.","तस्वीर कील पर टँगनी चाहिए।"),
+  c2_bus:s=>L("For the best ending, board with the logbook, after hanging the photograph at the shrine.","सबसे अच्छे अंत के लिए तस्वीर को कालू के स्थान पर टाँगकर, लॉगबुक के साथ बस में चढ़ो।")
+};
+
+/* ============ STATE ============ */
+let S;
+function newGame(chapter){
+  chapter = chapter || 1;
+  S = {chapter, scene: chapter===1 ? "courtyard" : "c2_path", health: chapter===1 ? 10 : 8, food:5, nerve:7,
+       turn:0, inv:[], flags:{}, msg:[], hint:null, hintsUsed:0, extraHints:0, hintNote:null, ending:null};
+  render();
+}
+const clamp = v => Math.max(0, Math.min(10, v));
+function timeLabel(s){
+  const t = s.turn;
+  if (s.chapter===1) return t<3 ? L("Dusk","शाम ढले") : t<6 ? L("Evening","साँझ") : t<9 ? L("Night","रात") : L("Midnight","आधी रात");
+  return t<3 ? L("Dawn","भोर") : t<6 ? L("Morning","सुबह") : t<8 ? L("Late morning","दोपहर से पहले") : L("Noon","दोपहर");
+}
+function isVisible(sceneId, idx, c, s){
+  if (c.once && s.flags["u_"+sceneId+"_"+idx]) return false;
+  if (c.hideIf && c.hideIf(s)) return false;
+  return true;
+}
+
+function choose(sceneId, idx){
+  const c = SCENES[sceneId].choices[idx];
+  const s = S;
+  if (c.need && c.need(s)) return;
+  s.msg = c.msg ? [c.msg] : [];
+  s.hint = null; s.hintNote = null;
+  if (c.once) s.flags["u_"+sceneId+"_"+idx] = true;
+  if (c.take) s.inv = s.inv.filter(i=>i!==c.take);
+  if (c.give && !has(s,c.give)) s.inv.push(c.give);
+  if (c.set) s.flags[c.set] = true;
+  const fx = c.fx || {};
+  s.health = clamp(s.health + (fx.health||0));
+  s.food = clamp(s.food + (fx.food||0));
+  s.nerve = clamp(s.nerve + (fx.nerve||0));
+  const cost = c.nav ? 0 : 1;
+  if (cost || fx.turn){
+    const before = s.turn;
+    s.turn += cost + (fx.turn||0);
+    const ticks = Math.floor(s.turn/2) - Math.floor(before/2);
+    if (ticks>0){ s.food = clamp(s.food - ticks); s.msg.push(UI.growl); }
+    if (cost && Math.random() < 0.3 && s.chapter===1){
+      s.nerve = clamp(s.nerve-1);
+      s.msg.push(RANDOM_EVENTS[Math.floor(Math.random()*RANDOM_EVENTS.length)]);
+    }
+  }
+  let next = typeof c.to === "function" ? c.to(s) : c.to;
+  if (!ENDINGS[next]){
+    if (s.chapter===1 && s.turn>=9 && !s.flags.midnight){ s.flags.midnight = true; next = "midnight"; }
+    if (s.chapter===2 && s.turn>=8 && !s.flags.bus_forced){ s.flags.bus_forced = true; next = "c2_bus"; }
+  }
+  if (s.health<=0) next = "dead_hurt";
+  else if (s.food<=0) next = "starved";
+  else if (s.nerve<=0) next = "broken";
+  if (ENDINGS[next]){ s.ending = next; saveEnding(next); if (ENDINGS[next].good) store("sunpur_ch2","1"); }
+  else s.scene = next;
+  render();
+}
+
+function useHint(){
+  const s = S;
+  const allowed = CONFIG.FREE_HINTS + s.extraHints;
+  if (s.hintsUsed >= allowed){ s.hint = null; s.hintNote = "out"; render(); return; }
+  s.hintsUsed++; s.hintNote = null;
+  s.hint = HINTS[s.scene](s);
+  render();
+}
+function grantPaidHints(hints, amount){
+  S.extraHints += hints;
+  S.hintNote = null;
+  S.msg = [UI.paidFor(amount, hints)];
+  render();
+}
+
+function payForPackage(pkg){
+  const upi = "upi://pay?pa="+encodeURIComponent(CONFIG.UPI_ID)+
+    "&pn="+encodeURIComponent(CONFIG.MERCHANT_NAME)+
+    "&am="+encodeURIComponent(pkg.amount.toFixed(2))+"&cu=INR";
+  window.location.href = upi;
+  S.pendingPackage = pkg;
+  store("sunpur_pending_package", JSON.stringify(pkg));
+  render();
+}
+
+/* ============ STORAGE ============ */
+function store(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+function fetchKey(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function loadEndings(){ try{ return JSON.parse(fetchKey("sunpur_endings")||"[]"); }catch(e){ return []; } }
+function saveEnding(id){ const a=loadEndings(); if(!a.includes(id)){ a.push(id); store("sunpur_endings", JSON.stringify(a)); } }
+
+/* ============ RENDER ============ */
+function esc(t){ return String(t).replace(/[&<>"]/g, ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch])); }
+function bar(label,val,color){
+  return '<div>'+esc(tr(label))+' '+val+'/10<div class="bar"><div class="fill" style="width:'+(val*10)+'%;background:'+color+'"></div></div></div>';
+}
+function header(){
+  return '<div class="top"><h1>'+esc(tr(UI.title))+'</h1><button class="mini" id="lang">'+(lang==="en"?"हिंदी":"English")+'</button></div>'+
+         '<div class="sub">'+esc(tr(UI.sub))+' · '+esc(tr(UI.ch(S.chapter)))+'</div>';
+}
+function bindLang(){
+  document.getElementById("lang").onclick = ()=>{ lang = lang==="en" ? "hi" : "en"; store("sunpur_lang", lang); render(); };
+}
+function render(){
+  const app = document.getElementById("app");
+  const s = S;
+  const found = loadEndings().length, total = Object.keys(ENDINGS).length;
+  if (s.ending){
+    const e = ENDINGS[s.ending];
+    const ch2ok = fetchKey("sunpur_ch2")==="1" && s.chapter===1;
+    app.innerHTML = header()+
+      '<div class="card">'+
+      '<div class="stars">'+(e.stars? "★".repeat(e.stars)+"☆".repeat(5-e.stars) : "☆☆☆☆☆")+'</div>'+
+      '<h2>'+esc(tr(e.title))+'</h2>'+
+      (s.msg.length ? '<p class="msg">'+esc(s.msg.map(tr).join(" "))+'</p>' : '')+
+      '<p>'+esc(tr(e.text))+'</p>'+
+      '<p class="small">'+esc(tr(UI.found(found,total)))+'</p>'+
+      '<div class="row"><button class="primary" id="again">'+esc(tr(UI.again))+'</button><button class="primary" id="share">'+esc(tr(UI.share))+'</button>'+
+      (ch2ok ? '<button class="primary" id="ch2">'+esc(tr(UI.next))+'</button>' : '')+
+      (s.chapter===2 ? '<button class="primary" id="ch1">'+esc(tr(UI.ch1))+'</button>' : '')+
+      '</div><p class="small" id="shared"></p></div>';
+    bindLang();
+    document.getElementById("again").onclick = ()=>newGame(s.chapter);
+    document.getElementById("share").onclick = share;
+    if (ch2ok) document.getElementById("ch2").onclick = ()=>newGame(2);
+    if (s.chapter===2) document.getElementById("ch1").onclick = ()=>newGame(1);
+    return;
+  }
+  const sc = SCENES[s.scene];
+  const allowed = CONFIG.FREE_HINTS + s.extraHints;
+  const left = Math.max(0, allowed - s.hintsUsed);
+  let html = header()+
+    '<div class="stats">'+bar(UI.health,s.health,"var(--hp)")+bar(UI.food,s.food,"var(--food)")+bar(UI.nerve,s.nerve,"var(--nerve)")+'</div>'+
+    '<div class="meta"><span>'+esc(tr(timeLabel(s)))+'</span><span>'+esc(tr(UI.carrying))+(s.inv.length? esc(s.inv.map(itemName).join(", ")) : esc(tr(UI.nothing)))+'</span></div>'+
+    '<div class="card"><h2>'+esc(tr(sc.title))+'</h2>'+
+    (s.msg.length ? '<p class="msg">'+esc(s.msg.map(tr).join(" "))+'</p>' : '')+
+    '<p>'+esc(tr(sc.text(s)))+'</p>'+
+    (s.hint ? '<p class="hint">'+esc(tr(s.hint))+'</p>' : '')+
+    (s.hintNote==="out" ? '<p class="hint">'+esc(tr(UI.nohints))+'</p>' : '')+
+    '<div class="choices">';
+  sc.choices.forEach((c,i)=>{
+    if (!isVisible(s.scene,i,c,s)) return;
+    const hint = c.need ? c.need(s) : null;
+    html += '<button data-i="'+i+'"'+(hint?' disabled':'')+'>'+esc(tr(c.t))+(hint?'<span class="need">'+esc(tr(hint))+'</span>':'')+'</button>';
+  });
+  if (s.hintNote==="out"){
+    html += '<p class="small">'+esc(tr(UI.packages))+'</p>';
+    html += '<div class="row" id="packages">';
+    CONFIG.HINT_PACKAGES.forEach((pkg,i)=>{
+      html += '<button class="hintbtn" data-pkg="'+i+'">'+esc(tr(UI.package(pkg.amount,pkg.hints)))+'</button>';
+    });
+    html += '</div>';
+    html += '<button class="hintbtn" id="paid">'+esc(tr(UI.paid))+'</button>';
+  } else {
+    html += '<button class="hintbtn" id="hint">'+esc(tr(UI.hint(left)))+'</button>';
+  }
+  html += '</div></div>';
+  app.innerHTML = html;
+  bindLang();
+  app.querySelectorAll("button[data-i]").forEach(b=>{
+    b.onclick = ()=> choose(s.scene, parseInt(b.getAttribute("data-i"),10));
+  });
+  const h = document.getElementById("hint"); if (h) h.onclick = useHint;
+  app.querySelectorAll("button[data-pkg]").forEach(b=>{
+    b.onclick = ()=>{
+      const pkg = CONFIG.HINT_PACKAGES[parseInt(b.getAttribute("data-pkg"),10)];
+      payForPackage(pkg);
+    };
+  });
+  const paid = document.getElementById("paid");
+  if (paid) paid.onclick = ()=>{
+    const pending = JSON.parse(fetchKey("sunpur_pending_package")||"null");
+    if (pending && CONFIG.HINT_PACKAGES.some(p=>p.amount===pending.amount && p.hints===pending.hints)){
+      grantPaidHints(pending.hints, pending.amount);
+      store("sunpur_pending_package", "");
+    } else {
+      S.hintNote = null;
+      render();
+    }
+  };
+}
+
+function share(){
+  const e = ENDINGS[S.ending];
+  const stars = e.stars ? "★".repeat(e.stars) : "☆";
+  const text = (lang==="hi"
+    ? '"'+tr(e.title)+'" '+stars+' — घोस्ट टाउन: सुनपुर में मेरा अंत। क्या तुम बेहतर अंत ढूँढ सकते हो?'
+    : 'I got "'+tr(e.title)+'" '+stars+' in Ghost Town: Sunpur. Can you find the best ending?')
+    + (location.protocol.startsWith("http") ? " "+location.href : "");
+  const note = document.getElementById("shared");
+  if (navigator.share){ navigator.share({text}).catch(()=>{}); return; }
+  if (navigator.clipboard){ navigator.clipboard.writeText(text).then(()=>{ note.textContent = tr(UI.copied); }).catch(()=>{ note.textContent = text; }); }
+  else note.textContent = text;
+}
+
+const savedLang = fetchKey("sunpur_lang");
+if (savedLang==="hi" || savedLang==="en") lang = savedLang;
+newGame(1);
+</script>
+</body>
+</html>
