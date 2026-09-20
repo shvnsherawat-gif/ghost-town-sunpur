@@ -38,6 +38,8 @@ button.hintbtn{background:transparent;border-style:dashed;color:var(--nerve);tex
 .row button{text-align:center;flex:1 1 140px}
 .paybox{margin-top:12px;padding:12px;background:#141820;border:1px solid #2a3140;border-radius:12px;text-align:center}
 .upi-qr{display:block;margin:0 auto;border-radius:10px;background:#fff;padding:6px;max-width:100%;height:auto;box-shadow:0 4px 18px rgba(0,0,0,.35)}
+.utr-input{display:block;width:100%;max-width:160px;margin:0 auto 8px;padding:10px 12px;font-size:18px;letter-spacing:.2em;text-align:center;border-radius:8px;border:1px solid #3a4255;background:#0e1118;color:var(--ink);font-family:system-ui,sans-serif}
+.utr-input:focus{outline:none;border-color:var(--accent)}
 
 /* ---------- ANIMATION LAYERS ---------- */
 body[data-mood="dusk"]{background-color:#1a1420}
@@ -426,27 +428,57 @@ button.mini+button.mini{margin-left:6px}
 <div class="fog"></div><div class="glow"></div><canvas id="fx"></canvas>
 <div class="wrap"><div id="app"></div></div>
 
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ============ CONFIG (edit these) ============ */
 const CONFIG = {
-  FREE_HINTS: 3,          // free hints per playthrough
-  UPI_ID: "8383028896@pthdfc",        // your UPI / Paytm handle
-  UPI_NAME: "Shivani Choudhary",      // name shown inside the payment app / QR
-  UPI_AMOUNT: "10",                   // amount in rupees ("" = let the payer choose)
-  EXTRA_HINTS_PER_PURCHASE: 3
+  /* Hint economy: exactly 1 free hint for a player, then 2 hints per ₹10 purchase. */
+  FREE_HINTS: 1,
+  EXTRA_HINTS_PER_PURCHASE: 2,
+  HINT_PRICE_RUPEES: 10,
+
+  /* Supabase public settings. Never put a Supabase secret/service key here. */
+  SUPABASE_URL: "https://cwddeqcixxgklhsjpava.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_wc6cHWGjZiHcREEAr5VN3Q_ZDInaJ6b",
+
+  /* Edge Function endpoints. These are filled automatically from SUPABASE_URL. */
+  HINT_API_FUNCTION: "hint-api",
+  CREATE_ORDER_FUNCTION: "create-hint-order"
 };
-/* Built from the fields above. Used for QR + optional deep link. */
-CONFIG.UPI_LINK = CONFIG.UPI_ID
-  ? "upi://pay?pa="+CONFIG.UPI_ID
-    + "&pn="+encodeURIComponent(CONFIG.UPI_NAME)
-    + (CONFIG.UPI_AMOUNT ? "&am="+encodeURIComponent(CONFIG.UPI_AMOUNT) : "")
-    + "&cu=INR"
-    + "&tn="+encodeURIComponent("Hints")
-  : "";
-/* Dynamic QR image (₹10 pre-filled). Works with any UPI app when scanned. */
-CONFIG.UPI_QR = CONFIG.UPI_LINK
-  ? "https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data="+encodeURIComponent(CONFIG.UPI_LINK)
-  : "";
+CONFIG.SUPABASE_READY = !!(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY);
+CONFIG.SUPABASE_FN = name => CONFIG.SUPABASE_URL.replace(/\/$/, "") + "/functions/v1/" + name;
+let sb = null;
+let SB_ACCESS_TOKEN = null;
+
+async function initSupabasePlayer(){
+  if(!CONFIG.SUPABASE_READY) return null;
+  if(!window.supabase || !window.supabase.createClient) throw new Error("Supabase browser SDK not loaded");
+  sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
+    auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:false }
+  });
+  let {data:{session}} = await sb.auth.getSession();
+  if(!session){
+    const r = await sb.auth.signInAnonymously();
+    if(r.error) throw r.error;
+    session = r.data.session;
+  }
+  SB_ACCESS_TOKEN = session?.access_token || null;
+  sb.auth.onAuthStateChange((_event, session2)=>{ SB_ACCESS_TOKEN = session2?.access_token || null; });
+  return session?.user || null;
+}
+
+async function authHeaders(extra={}){
+  if(CONFIG.SUPABASE_READY && sb){
+    const {data:{session}} = await sb.auth.getSession();
+    SB_ACCESS_TOKEN = session?.access_token || SB_ACCESS_TOKEN;
+  }
+  return Object.assign({
+    "Content-Type":"application/json",
+    "apikey":CONFIG.SUPABASE_ANON_KEY,
+    "Authorization":"Bearer "+(SB_ACCESS_TOKEN || CONFIG.SUPABASE_ANON_KEY)
+  }, extra);
+}
 
 /* ============ BILINGUAL HELPERS ============ */
 const L = (en, hi) => ({en, hi});
@@ -466,13 +498,18 @@ const UI = {
   found: (a,b)=>L("Endings found: "+a+" of "+b+". Try again and find a better one.","मिले अंत: "+a+" / "+b+"। फिर खेलो और बेहतर अंत ढूँढो।"),
   copied: L("Copied. Paste it in WhatsApp.","कॉपी हो गया। WhatsApp में चिपकाओ।"),
   hint: n => L("Hint ("+n+" left)","संकेत ("+n+" बचे)"),
-  nohints: L("No free hints left this run.","इस बार के मुफ़्त संकेत खत्म हो गए।"),
-  buy: L("Buy more hints (₹10)","और संकेत खरीदें (₹10)"),
-  paid: L("I've paid, give me hints","मैंने भुगतान कर दिया, संकेत दो"),
-  scanPay: L("Scan this QR with any UPI app (₹10)","किसी भी UPI ऐप से इस QR को स्कैन करें (₹10)"),
-  orCopy: L("Or copy UPI ID:","या UPI आईडी कॉपी करें:"),
-  copyUpi: L("Copy UPI ID","UPI आईडी कॉपी करो"),
-  payCopied: L("UPI ID copied.","UPI आईडी कॉपी हो गई।"),
+  nohints: L("Your free hint has been used. Pay ₹10 for 2 more hints.","आपका मुफ़्त संकेत इस्तेमाल हो चुका है। 2 और संकेतों के लिए ₹10 दें।"),
+  buy: L("Get 2 hints — ₹10","2 संकेत पाएं — ₹10"),
+  paid: L("Check payment","भुगतान जाँचें"),
+  paymentStarting: L("Opening Razorpay secure checkout…","Razorpay सुरक्षित भुगतान खोला जा रहा है…"),
+  paymentWaiting: L("Payment started. Complete it, then return here. We will verify it automatically.","भुगतान शुरू हो गया है। भुगतान पूरा करके यहाँ लौटें। हम इसे अपने-आप सत्यापित करेंगे।"),
+  paymentSuccess: L("Payment verified. 2 hints added.","भुगतान सत्यापित। 2 संकेत जोड़ दिए गए।"),
+  codeIssued: L("Your paid-hint code:","आपका भुगतान-हिंट कोड:"),
+  paymentPending: L("Payment is not confirmed yet. Please complete the payment and try again.","भुगतान अभी सत्यापित नहीं हुआ। भुगतान पूरा करके फिर कोशिश करें।"),
+  paymentFailed: L("Payment was not successful.","भुगतान सफल नहीं हुआ।"),
+  codeSetup: L("Payment system is not configured yet.","भुगतान प्रणाली अभी सेट नहीं है।"),
+  hintSetup: L("Could not connect to the hint server.","संकेत सर्वर से संपर्क नहीं हो सका।"),
+  howPay: L("Pay securely through the configured payment gateway. Hints are added only after the server verifies the payment.","कॉन्फ़िगर किए गए सुरक्षित भुगतान गेटवे से भुगतान करें। सर्वर द्वारा भुगतान सत्यापित होने के बाद ही संकेत जोड़े जाएंगे।"),
   soundOn: L("Sound on","आवाज़ चालू"), soundOff: L("Sound off","आवाज़ बंद"),
   growl: L("Your stomach growls.","पेट में भूख कुलबुलाती है।")
 };
@@ -657,6 +694,291 @@ const SCENES = {
   }
 };
 
+/* ============ CHAPTERS 3–25: THE ROAD BEYOND SUNPUR ============ */
+const EXTRA_CHAPTERS = [
+  {
+    "n": 3,
+    "en": "The Empty Bus",
+    "hi": "खाली बस",
+    "intro_en": "The bus from Sunpur does not stop at a station. It stops in the middle of nowhere—and the conductor knows your name.",
+    "intro_hi": "सुनपुर की बस किसी स्टेशन पर नहीं रुकती। वह सुनसान जगह पर रुकती है—और कंडक्टर तुम्हारा नाम जानता है।",
+    "clue_en": "ticket stub",
+    "clue_desc_en": "A torn ticket bears a time that has not happened yet.",
+    "clue_desc_hi": "फटे टिकट पर ऐसा समय लिखा है जो अभी आया ही नहीं।"
+  },
+  {
+    "n": 4,
+    "en": "The River That Runs Backward",
+    "hi": "उलटी बहती नदी",
+    "intro_en": "At dawn you reach a river flowing uphill. Something from Sunpur is floating against the current.",
+    "intro_hi": "भोर में तुम ऐसी नदी तक पहुँचते हो जो ऊपर की ओर बह रही है। सुनपुर से आई कोई चीज़ धारा के विरुद्ध तैर रही है।",
+    "clue_en": "silver bell",
+    "clue_desc_en": "A tiny silver bell rings underwater whenever you look away.",
+    "clue_desc_hi": "छोटी चाँदी की घंटी पानी के नीचे तब बजती है जब तुम नज़र हटाते हो।"
+  },
+  {
+    "n": 5,
+    "en": "The Whispering Forest",
+    "hi": "फुसफुसाता जंगल",
+    "intro_en": "Three paths enter the forest. Only one has footprints going in—and none coming back.",
+    "intro_hi": "तीन रास्ते जंगल में जाते हैं। केवल एक पर अंदर जाते पैरों के निशान हैं—वापस आने के नहीं।",
+    "clue_en": "red thread",
+    "clue_desc_en": "A red thread is tied to trees in a pattern, like a map.",
+    "clue_desc_hi": "पेड़ों पर लाल धागा एक नक्शे जैसा बँधा है।"
+  },
+  {
+    "n": 6,
+    "en": "The Watchtower",
+    "hi": "चौकी का टावर",
+    "intro_en": "The old watchtower has a working clock, but every hour it shows a different year.",
+    "intro_hi": "पुराने चौकीदार टावर की घड़ी चल रही है, लेकिन हर घंटे एक अलग साल दिखाती है।",
+    "clue_en": "brass dial",
+    "clue_desc_en": "A brass dial reveals one missing year between the dates.",
+    "clue_desc_hi": "पीतल की डिस्क तारीखों के बीच एक गायब साल दिखाती है।"
+  },
+  {
+    "n": 7,
+    "en": "The Buried Station",
+    "hi": "दबी हुई स्टेशन",
+    "intro_en": "Under a collapsed road lies a railway platform that should not exist. A train is waiting without tracks.",
+    "intro_hi": "धँसी सड़क के नीचे एक ऐसा रेलवे प्लेटफ़ॉर्म है जो होना ही नहीं चाहिए। बिना पटरी के एक ट्रेन इंतज़ार कर रही है।",
+    "clue_en": "black ticket",
+    "clue_desc_en": "The ticket has a seat number matching a name from Kalu's logbook.",
+    "clue_desc_hi": "टिकट की सीट संख्या कालू की लॉगबुक के एक नाम से मिलती है।"
+  },
+  {
+    "n": 8,
+    "en": "The School of Names",
+    "hi": "नामों का स्कूल",
+    "intro_en": "Every classroom is empty, yet the blackboard fills itself with names as you enter.",
+    "intro_hi": "हर कक्षा खाली है, फिर भी तुम्हारे प्रवेश करते ही ब्लैकबोर्ड पर नाम लिखने लगते हैं।",
+    "clue_en": "chalk key",
+    "clue_desc_en": "One name appears before you say it: yours.",
+    "clue_desc_hi": "एक नाम तुम्हारे बोलने से पहले लिखा जाता है: तुम्हारा।"
+  },
+  {
+    "n": 9,
+    "en": "The Quarry",
+    "hi": "पत्थर की खदान",
+    "intro_en": "A deep quarry echoes with knocks from below. The rhythm is a message, not a sound.",
+    "intro_hi": "गहरी खदान में नीचे से दस्तकें आती हैं। वह आवाज़ नहीं, संदेश की लय है।",
+    "clue_en": "three-stone code",
+    "clue_desc_en": "The pattern repeats every seven knocks.",
+    "clue_desc_hi": "पैटर्न हर सात दस्तकों के बाद दोहरता है।"
+  },
+  {
+    "n": 10,
+    "en": "The Radio Tower",
+    "hi": "रेडियो टावर",
+    "intro_en": "A dead radio suddenly broadcasts tomorrow's news. One sentence mentions you.",
+    "intro_hi": "बंद रेडियो अचानक कल की खबरें सुनाता है। एक वाक्य में तुम्हारा ज़िक्र है।",
+    "clue_en": "frequency card",
+    "clue_desc_en": "Three frequencies form a sequence hidden in the static.",
+    "clue_desc_hi": "तीन फ़्रीक्वेंसी स्टैटिक में छिपा क्रम बनाती हैं।"
+  },
+  {
+    "n": 11,
+    "en": "The Night Train",
+    "hi": "रात की ट्रेन",
+    "intro_en": "You board a train that has no driver. Every carriage contains an object from a different year.",
+    "intro_hi": "तुम ऐसी ट्रेन में चढ़ते हो जिसका कोई ड्राइवर नहीं। हर डिब्बे में अलग साल की कोई वस्तु है।",
+    "clue_en": "conductor's watch",
+    "clue_desc_en": "Its hands move backward only when someone lies.",
+    "clue_desc_hi": "उसकी सुइयाँ तभी उलटी चलती हैं जब कोई झूठ बोलता है।"
+  },
+  {
+    "n": 12,
+    "en": "The Flood Archive",
+    "hi": "बाढ़ का अभिलेख",
+    "intro_en": "A sealed archive contains records that contradict the official story of Sunpur.",
+    "intro_hi": "बंद अभिलेखागार में ऐसे रिकॉर्ड हैं जो सुनपुर की सरकारी कहानी से टकराते हैं।",
+    "clue_en": "wax seal",
+    "clue_desc_en": "The seal bears the same mark as Kalu's bell.",
+    "clue_desc_hi": "मुहर पर वही निशान है जो कालू की घंटी पर था।"
+  },
+  {
+    "n": 13,
+    "en": "The Silent Hospital",
+    "hi": "खामोश अस्पताल",
+    "intro_en": "The hospital lights turn on room by room, always one room ahead of you.",
+    "intro_hi": "अस्पताल की लाइटें एक-एक कमरे में जलती हैं, हमेशा तुमसे एक कमरा आगे।",
+    "clue_en": "patient bracelet",
+    "clue_desc_en": "Every bracelet carries the same admission time.",
+    "clue_desc_hi": "हर ब्रेसलेट पर वही भर्ती का समय लिखा है।"
+  },
+  {
+    "n": 14,
+    "en": "The Underground Library",
+    "hi": "भूमिगत पुस्तकालय",
+    "intro_en": "Shelves descend beneath the earth. The books are blank until you touch them.",
+    "intro_hi": "ज़मीन के नीचे अलमारियाँ उतरती जाती हैं। किताबें छूने तक खाली हैं।",
+    "clue_en": "page 0",
+    "clue_desc_en": "Every blank book has the same missing first page.",
+    "clue_desc_hi": "हर खाली किताब का पहला पन्ना गायब है।"
+  },
+  {
+    "n": 15,
+    "en": "The Festival That Never Ended",
+    "hi": "खत्म न होने वाला मेला",
+    "intro_en": "Lights glow in an abandoned fairground. The rides move with no electricity.",
+    "intro_hi": "उजड़े मेले में रोशनियाँ जल रही हैं। झूले बिना बिजली के चल रहे हैं।",
+    "clue_en": "paper mask",
+    "clue_desc_en": "Every mask has a different expression except one.",
+    "clue_desc_hi": "हर मुखौटे का भाव अलग है—सिर्फ़ एक को छोड़कर।"
+  },
+  {
+    "n": 16,
+    "en": "The Clockmaker's House",
+    "hi": "घड़ीसाज़ का घर",
+    "intro_en": "Hundreds of clocks tick at different speeds. One clock is silent and warm.",
+    "intro_hi": "सैकड़ों घड़ियाँ अलग-अलग गति से चल रही हैं। एक घड़ी शांत और गर्म है।",
+    "clue_en": "warm clock",
+    "clue_desc_en": "Its hands point to the exact moment the village vanished.",
+    "clue_desc_hi": "उसकी सुइयाँ ठीक उस पल पर हैं जब गाँव गायब हुआ।"
+  },
+  {
+    "n": 17,
+    "en": "The Court Below",
+    "hi": "नीचे की अदालत",
+    "intro_en": "A courtroom underground is waiting for a witness. The judge calls your name.",
+    "intro_hi": "ज़मीन के नीचे अदालत तुम्हारा इंतज़ार कर रही है। जज तुम्हारा नाम पुकारता है।",
+    "clue_en": "sealed testimony",
+    "clue_desc_en": "The witness statement has been altered three times.",
+    "clue_desc_hi": "गवाह का बयान तीन बार बदला गया है।"
+  },
+  {
+    "n": 18,
+    "en": "The Mirror House",
+    "hi": "आईनों का घर",
+    "intro_en": "Every mirror shows a different version of Sunpur. One shows the village as it was before the flood.",
+    "intro_hi": "हर आईना सुनपुर का अलग रूप दिखाता है। एक आईना गाँव को बाढ़ से पहले जैसा दिखाता है।",
+    "clue_en": "cracked mirror",
+    "clue_desc_en": "Your reflection is missing from exactly one mirror.",
+    "clue_desc_hi": "ठीक एक आईने में तुम्हारा प्रतिबिंब नहीं है।"
+  },
+  {
+    "n": 19,
+    "en": "The Dam's Heart",
+    "hi": "बाँध का दिल",
+    "intro_en": "Deep inside the dam, a machine still runs despite decades without power.",
+    "intro_hi": "बाँध के भीतर एक मशीन दशकों से बिना बिजली के चल रही है।",
+    "clue_en": "red valve",
+    "clue_desc_en": "Three valves control three memories, not three pipes.",
+    "clue_desc_hi": "तीन वाल्व तीन पाइप नहीं, तीन यादों को नियंत्रित करते हैं।"
+  },
+  {
+    "n": 20,
+    "en": "The Mountain Shrine",
+    "hi": "पहाड़ी मंदिर",
+    "intro_en": "The trail ends at a shrine where every bell is tied down. Yet one keeps ringing.",
+    "intro_hi": "रास्ता ऐसे मंदिर पर खत्म होता है जहाँ हर घंटी बाँधी गई है। फिर भी एक बजती रहती है।",
+    "clue_en": "stone eye",
+    "clue_desc_en": "The ringing stops when the stone eye faces north.",
+    "clue_desc_hi": "पत्थर की आँख उत्तर की ओर होते ही घंटी रुक जाती है।"
+  },
+  {
+    "n": 21,
+    "en": "The Room Without a Door",
+    "hi": "बिना दरवाज़े का कमरा",
+    "intro_en": "You find a room inside solid rock. There is no entrance, but you are already inside.",
+    "intro_hi": "ठोस चट्टान के भीतर एक कमरा मिलता है। कोई दरवाज़ा नहीं, फिर भी तुम अंदर हो।",
+    "clue_en": "black notebook",
+    "clue_desc_en": "Its pages describe choices you have not made yet.",
+    "clue_desc_hi": "उसके पन्ने उन फैसलों का वर्णन करते हैं जो तुमने अभी किए ही नहीं।"
+  },
+  {
+    "n": 22,
+    "en": "The Storm",
+    "hi": "तूफ़ान",
+    "intro_en": "The sky over Sunpur tears open. Rain falls upward and the old bell rings across every valley.",
+    "intro_hi": "सुनपुर के ऊपर आसमान फटता-सा लगता है। बारिश ऊपर गिरती है और पुरानी घंटी हर घाटी में बजती है।",
+    "clue_en": "storm lantern",
+    "clue_desc_en": "The lantern burns without fuel, but only while you tell the truth.",
+    "clue_desc_hi": "लालटेन बिना ईंधन जलती है, लेकिन सिर्फ़ सच बोलते समय।"
+  },
+  {
+    "n": 23,
+    "en": "The Second Sunpur",
+    "hi": "दूसरा सुनपुर",
+    "intro_en": "Beyond the storm is another village, identical to Sunpur—except everyone is alive.",
+    "intro_hi": "तूफ़ान के पार दूसरा सुनपुर है—बिल्कुल वैसा, बस यहाँ सब ज़िंदा हैं।",
+    "clue_en": "family register",
+    "clue_desc_en": "The register lists people from both villages under one date.",
+    "clue_desc_hi": "रजिस्टर दोनों गाँवों के लोगों को एक ही तारीख़ के नीचे दर्ज करता है।"
+  },
+  {
+    "n": 24,
+    "en": "Kalu's Last Secret",
+    "hi": "कालू का आख़िरी राज़",
+    "intro_en": "Kalu finally appears—not as a ghost, but as a man who has been waiting for you.",
+    "intro_hi": "कालू आख़िरकार सामने आता है—भूत की तरह नहीं, बल्कि एक ऐसे आदमी की तरह जो तुम्हारा इंतज़ार कर रहा था।",
+    "clue_en": "master key",
+    "clue_desc_en": "The key opens a door that was never built.",
+    "clue_desc_hi": "चाबी ऐसे दरवाज़े को खोलती है जो कभी बनाया ही नहीं गया।"
+  },
+  {
+    "n": 25,
+    "en": "Dawn Beyond the Gate",
+    "hi": "फाटक के पार भोर",
+    "intro_en": "The final gate opens onto a choice: leave Sunpur behind, or carry its memory into the world.",
+    "intro_hi": "आख़िरी फाटक के पार एक चुनाव है: सुनपुर को पीछे छोड़ देना, या उसकी याद दुनिया तक ले जाना।",
+    "clue_en": "last bell",
+    "clue_desc_en": "The final clue connects every object you collected.",
+    "clue_desc_hi": "आख़िरी सुराग तुम्हारे जमा किए हर सामान को जोड़ देता है।"
+  }
+];
+const chapterItem = n => "Clue "+n;
+const chapterScene = (n,k) => "c"+n+"_"+k;
+
+function buildExtraChapters(){
+  EXTRA_CHAPTERS.forEach(d=>{
+    const n=d.n;
+    const difficulty=n-2;
+    const item=chapterItem(n), start=chapterScene(n,"start"), trial=chapterScene(n,"trial"), final=chapterScene(n,"final");
+    const truthEnd=chapterScene(n,"truth"), escapeEnd=chapterScene(n,"escape"), cost=difficulty;
+    SCENES[start]={
+      title:L("Chapter "+n+": "+d.en,"अध्याय "+n+": "+d.hi),
+      text:s=>L(d.intro_en+" A "+d.clue_en+" is waiting nearby."," "+d.intro_hi+" पास ही "+d.clue_desc_hi+" मौजूद है।"),
+      choices:[
+        {t:L("Take the clue","सुराग उठा लो"),once:true,give:item,set:"c"+n+"_clue",fx:{nerve:1},msg:L("You take it. A hidden detail becomes visible.","तुम उसे उठा लेते हो। एक छिपी हुई बात दिखाई देने लगती है।"),to:trial},
+        {t:L("Search for a second clue","दूसरा सुराग खोजो"),once:true,set:"c"+n+"_mark",fx:{food:-1},msg:L("You find a pattern scratched where nobody would normally look.","जहाँ कोई सामान्यतः नहीं देखेगा, वहाँ एक पैटर्न खुदा मिलता है।"),to:start},
+        {t:L("Take the dangerous shortcut","खतरनाक छोटा रास्ता चुनो"),once:true,fx:{health:-Math.min(6,cost),nerve:-1},msg:L("The shortcut works—but something notices you.","रास्ता छोटा है—लेकिन किसी ने तुम्हें देख लिया है।"),to:trial},
+        {t:L("Wait and listen","रुको और सुनो"),once:true,fx:{nerve:1},msg:L("The silence gives you one useful rhythm.","सन्नाटा तुम्हें एक काम की लय देता है।"),to:start}
+      ]
+    };
+    SCENES[trial]={
+      title:L("The Puzzle","पहेली"),
+      text:s=>L("The "+d.clue_en+" carries the first clue. "+d.clue_desc_en+" Put the clues together before the place changes again."," "+d.clue_en+" में पहला सुराग है। "+d.clue_desc_hi+" जगह फिर बदलने से पहले दोनों को जोड़ो।"),
+      choices:[
+        {t:L("Decode the first clue","पहला सुराग समझो"),once:true,need:needItem(item),set:"c"+n+"_decoded",fx:{nerve:1},msg:L("The clue makes sense—but only halfway.","सुराग समझ आता है—लेकिन सिर्फ़ आधा।"),to:trial},
+        {t:L("Trace the hidden pattern","छिपे पैटर्न को समझो"),once:true,need:s=>s.flags["c"+n+"_mark"]?null:L("needs: the second clue","चाहिए: दूसरा सुराग"),set:"c"+n+"_pattern",fx:{food:-1,nerve:1},msg:L("The pattern points toward a hidden route.","पैटर्न एक छिपे रास्ते की ओर इशारा करता है।"),to:trial},
+        {t:L("Force your way through","ज़ोर लगाकर रास्ता बनाओ"),once:true,fx:{health:-Math.min(6,cost),food:-1},msg:L("You get through, but lose something important in the struggle.","तुम निकल जाते हो, लेकिन संघर्ष में कुछ ज़रूरी खो देते हो।"),to:trial},
+        {t:L("Step back and remember Sunpur","पीछे हटकर सुनपुर को याद करो"),once:true,fx:{nerve:2},msg:L("The memory of Kalu's bell gives you a final connection.","कालू की घंटी की याद आख़िरी कड़ी दे देती है।"),to:final}
+      ]
+    };
+    SCENES[final]={
+      title:L("The Hidden Door","छिपा हुआ दरवाज़ा"),
+      text:s=>L("The two clues now point to the same answer. You can leave safely—or risk everything to learn why this mystery keeps following you.","दोनों सुराग अब एक ही जवाब की ओर इशारा कर रहे हैं। तुम सुरक्षित निकल सकते हो—या यह जानने के लिए सब कुछ दाँव पर लगा सकते हो कि यह रहस्य तुम्हारा पीछा क्यों कर रहा है।"),
+      choices:[
+        {t:L("Open the hidden way and learn the truth","छिपा रास्ता खोलकर सच जानो"),need:s=>(s.flags["c"+n+"_decoded"]&&s.flags["c"+n+"_pattern"])?null:L("needs: both decoded clues","चाहिए: दोनों समझे हुए सुराग"),set:"c"+n+"_solved",fx:{nerve:-1},to:truthEnd},
+        {t:L("Take the safe way out","सुरक्षित रास्ते से निकल जाओ"),to:escapeEnd},
+        {t:L("Risk one last look","आख़िरी बार जोखिम लो"),fx:{health:-Math.min(6,cost),nerve:-1},to:s=>(s.flags["c"+n+"_solved"]?truthEnd:escapeEnd)}
+      ]
+    };
+    ENDINGS[truthEnd]={stars:5,title:L("Chapter "+n+" — The Missing Piece","अध्याय "+n+" — गायब कड़ी"),text:L(
+      d.intro_en+" You fit the clues together and uncover the truth hidden behind the "+d.clue_en+". The discovery does not end the mystery—it points directly to the next place. Before you can breathe, you hear the same bell that first called you into Sunpur.",
+      d.intro_hi+" तुम सुराग जोड़कर "+d.clue_en+" के पीछे छिपा सच खोज लेते हो। रहस्य खत्म नहीं होता—वह सीधे अगली जगह की ओर इशारा करता है। साँस लेने से पहले वही घंटी सुनाई देती है जिसने तुम्हें पहली बार सुनपुर बुलाया था।"
+    ),good:true};
+    ENDINGS[escapeEnd]={stars:3,title:L("Chapter "+n+" — Still Running","अध्याय "+n+" — रहस्य अभी बाकी है"),text:L(
+      "You escape the immediate danger, but the unanswered clue follows you. On the road ahead, you notice a mark identical to the one from Sunpur. Whatever is happening, it is not over.",
+      "तुम तत्काल खतरे से निकल जाते हो, लेकिन अनसुलझा सुराग तुम्हारा पीछा करता है। आगे की सड़क पर तुम्हें सुनपुर जैसा ही निशान दिखता है। जो भी हो रहा है, वह अभी खत्म नहीं हुआ।"
+    ),good:true};
+  });
+}
+buildExtraChapters();
+
+Object.keys(ENDINGS).filter(k=>/^end2_/.test(k)).forEach(k=>ENDINGS[k].good=true);
+
 /* ============ HINTS ============ */
 const HINTS = {
   courtyard:s=>L("Every place here holds something useful. Try the well, the haveli, and the temple before you think of leaving.","यहाँ हर जगह कुछ काम की चीज़ है। जाने की सोचने से पहले कुआँ, हवेली और मंदिर देखो।"),
@@ -681,21 +1003,35 @@ const HINTS = {
 let S;
 function newGame(chapter){
   chapter = chapter || 1;
-  S = {chapter, scene: chapter===1 ? "courtyard" : "c2_path", health: chapter===1 ? 10 : 8, food:5, nerve:7,
-       turn:0, inv:[], flags:{}, msg:[], hint:null, hintsUsed:0, extraHints:0, hintNote:null, ending:null,
-       prev:null, fresh:true, shake:false};
+  const scene = chapter===1 ? "courtyard" : chapter===2 ? "c2_path" : chapterScene(chapter,"start");
+  const difficulty = chapter>=3 ? chapter-2 : 0;
+  S = {chapter, scene, health: chapter===1 ? 10 : 8, food:chapter>=3 ? 6 : 5,
+       nerve:chapter>=3 ? 8 : 7, turn:0, inv:[], flags:{}, msg:[], hint:null,
+       hintsUsed:0, extraHints:0, hintNote:null, ending:null, prev:null, fresh:true,
+       paidHintsConsumed:0, paymentCode:null, playerId:(getPlayerId() || ""), freeHintAvailable:true, serverHintsReady:false,
+       shake:false, difficulty};
   render();
 }
 const clamp = v => Math.max(0, Math.min(10, v));
 function timeLabel(s){
   const t = s.turn;
   if (s.chapter===1) return t<3 ? L("Dusk","शाम ढले") : t<6 ? L("Evening","साँझ") : t<9 ? L("Night","रात") : L("Midnight","आधी रात");
-  return t<3 ? L("Dawn","भोर") : t<6 ? L("Morning","सुबह") : t<8 ? L("Late morning","दोपहर से पहले") : L("Noon","दोपहर");
+  if (s.chapter===2) return t<3 ? L("Dawn","भोर") : t<6 ? L("Morning","सुबह") : t<8 ? L("Late morning","दोपहर से पहले") : L("Noon","दोपहर");
+  return L("Chapter "+s.chapter+" • Stage "+(t+1),"अध्याय "+s.chapter+" • चरण "+(t+1));
 }
 function isVisible(sceneId, idx, c, s){
   if (c.once && s.flags["u_"+sceneId+"_"+idx]) return false;
   if (c.hideIf && c.hideIf(s)) return false;
   return true;
+}
+
+function unlockNextChapter(chapter){
+  if (chapter>=2 && chapter<25) store("sunpur_chapter_"+(chapter+1),"1");
+}
+function chapterUnlocked(chapter){
+  if (chapter<=1) return true;
+  if (chapter===2) return fetchKey("sunpur_ch2")==="1";
+  return fetchKey("sunpur_chapter_"+chapter)==="1";
 }
 
 function choose(sceneId, idx){
@@ -733,7 +1069,11 @@ function choose(sceneId, idx){
   else if (s.food<=0) next = "starved";
   else if (s.nerve<=0) next = "broken";
   if (ENDINGS[next]){
-    s.ending = next; saveEnding(next); if (ENDINGS[next].good) store("sunpur_ch2","1");
+    s.ending = next; saveEnding(next);
+    if (ENDINGS[next].good) {
+      if (s.chapter===1) store("sunpur_ch2","1");
+      if (s.chapter>=2) unlockNextChapter(s.chapter);
+    }
     playSound(ENDINGS[next].good ? "success" : "bad");
   } else {
     s.scene = next;
@@ -750,28 +1090,140 @@ function choose(sceneId, idx){
   if (s.scene) setTimeout(()=>playSceneSound(s.scene), 180);
 }
 
-function useHint(){
-  const s = S;
-  const allowed = CONFIG.FREE_HINTS + s.extraHints;
-  if (s.hintsUsed >= allowed){ s.hint = null; s.hintNote = "out"; render(); return; }
-  s.hintsUsed++; s.hintNote = null;
-  s.hint = HINTS[s.scene](s);
+function getPlayerId(){
+  return (S && S.playerId) || fetchKey("sunpur_player_id") || null;
+}
+
+async function hintApi(action, orderId){
+  if (!CONFIG.SUPABASE_READY) throw new Error("setup");
+  const headers = await authHeaders(orderId ? {"x-sunpur-order-id":orderId} : {});
+  const payload = {action};
+  if(orderId) payload.order_id = orderId;
+  const res = await fetch(CONFIG.SUPABASE_FN(CONFIG.HINT_API_FUNCTION), {
+    method:"POST", headers, body:JSON.stringify(payload)
+  });
+  let data=null; try{ data=await res.json(); }catch(e){}
+  if(!res.ok) throw new Error((data&&data.error)||"request_failed");
+  return data;
+}
+
+async function syncHintState(){
+  if(!CONFIG.SUPABASE_READY) return null;
+  try{
+    const data=await hintApi("state");
+    if(data && data.ok){
+      S.freeHintAvailable = !!data.free_hint_available;
+      S.extraHints = Math.max(0, Number(data.paid_hints||0));
+      S.serverHintsReady = true;
+      return data;
+    }
+  }catch(e){
+    S.serverHintsReady=false;
+  }
+  return null;
+}
+
+async function useHint(){
+  const s=S;
+  if (!s.serverHintsReady){
+    const state=await syncHintState();
+    if(!state){ s.hintNote="setup"; render(); return; }
+  }
+
+  let consumed=false;
+  if(s.freeHintAvailable){
+    try{
+      const data=await hintApi("consume_free");
+      consumed=!!(data&&data.ok&&data.consumed);
+      if(consumed) s.freeHintAvailable=false;
+    }catch(e){ s.hintNote="setup"; render(); return; }
+  } else if(s.extraHints>0){
+    try{
+      const data=await hintApi("consume_paid");
+      consumed=!!(data&&data.ok&&data.consumed);
+      if(consumed) s.extraHints=Math.max(0,s.extraHints-1);
+    }catch(e){ s.hintNote="setup"; render(); return; }
+  }
+
+  if(!consumed){ s.hint=null; s.hintNote="out"; render(); return; }
+  s.hintNote=null;
+  const hintFn=HINTS[s.scene]||getChapterHint;
+  s.hint=hintFn(s);
   playSound("hint");
   render();
 }
-function grantPaidHints(){ S.extraHints += CONFIG.EXTRA_HINTS_PER_PURCHASE; S.hintNote = null; render(); }
 
-function copyUpiId(){
-  const note = document.getElementById("upinote");
-  try {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(CONFIG.UPI_ID)
-        .then(()=>{ if (note) note.textContent = tr(UI.payCopied); })
-        .catch(()=>{ if (note) note.textContent = CONFIG.UPI_ID; });
-    } else if (note) {
-      note.textContent = CONFIG.UPI_ID;
+async function startHintPurchase(){
+  const note=document.getElementById("upinote");
+  const btn=document.getElementById("buyhints");
+  const show=t=>{if(note) note.textContent=t;};
+  if(!CONFIG.SUPABASE_READY){ show(tr(UI.codeSetup)); return; }
+  if(btn) btn.disabled=true;
+  show(tr(UI.paymentStarting));
+
+  // Open a blank tab immediately from the user's click so browsers are less
+  // likely to block the later navigation after the async server request.
+  let paymentWindow=null;
+  try{ paymentWindow=window.open("about:blank","_blank","noopener,noreferrer"); }catch(e){}
+
+  try{
+    const res=await fetch(CONFIG.SUPABASE_FN(CONFIG.CREATE_ORDER_FUNCTION),{
+      method:"POST",
+      headers:await authHeaders(),
+      body:JSON.stringify({amount:CONFIG.HINT_PRICE_RUPEES})
+    });
+    let data=null; try{data=await res.json();}catch(e){}
+    if(!res.ok || !data || !data.ok || !data.checkout_url || !data.order_id){
+      if(paymentWindow && !paymentWindow.closed) paymentWindow.close();
+      show((data&&data.error) ? String(data.error) : tr(UI.paymentFailed));
+      if(btn) btn.disabled=false;
+      return;
     }
-  } catch(e){ if (note) note.textContent = CONFIG.UPI_ID; }
+
+    S.pendingOrderId=data.order_id;
+    store("sunpur_pending_order",data.order_id);
+    show(tr(UI.paymentWaiting));
+
+    if(paymentWindow && !paymentWindow.closed){
+      paymentWindow.location.href=data.checkout_url;
+    }else{
+      // Fallback if the browser blocked the new tab.
+      window.location.href=data.checkout_url;
+      return;
+    }
+
+    // The webhook performs the actual entitlement. We only poll our own
+    // Supabase order status here so the page can update as soon as payment is
+    // confirmed. The browser never declares payment successful by itself.
+    await waitForPayment(data.order_id,show,btn);
+  }catch(e){
+    if(paymentWindow && !paymentWindow.closed) paymentWindow.close();
+    show(tr(UI.paymentFailed));
+    if(btn) btn.disabled=false;
+  }
+}
+
+async function waitForPayment(orderId,show,btn){
+  const started=Date.now();
+  const maxWait=10*60*1000;
+  const poll=async()=>{
+    if(Date.now()-started>maxWait){ if(btn) btn.disabled=false; show(tr(UI.paymentPending)); return; }
+    try{
+      const data=await hintApi("order_status",orderId);
+      if(data && data.order_id===orderId && data.status==="PAID"){
+        await syncHintState();
+        S.paymentCode = data.payment_code || S.paymentCode || null;
+        store("sunpur_pending_order","");
+        show(tr(UI.paymentSuccess));
+        playSound("success");
+        if(btn) btn.disabled=false;
+        setTimeout(()=>render(),500);
+        return;
+      }
+    }catch(e){}
+    setTimeout(poll,2500);
+  };
+  poll();
 }
 
 /* ============ STORAGE ============ */
@@ -1031,6 +1483,16 @@ function applyFx(){
   else { if (rafId && typeof cancelAnimationFrame==="function") cancelAnimationFrame(rafId); rafId = null; }
 }
 
+function getChapterHint(s){
+  const n=s.chapter;
+  if(n<3) return null;
+  if(!s.flags["c"+n+"_clue"]) return L("Start by taking the obvious clue. Then look for a second, hidden pattern.","पहले सामने वाला सुराग उठाओ। फिर दूसरा छिपा पैटर्न खोजो।");
+  if(!s.flags["c"+n+"_mark"]) return L("The second clue is nearby, but easy to miss.","दूसरा सुराग पास ही है, लेकिन आसानी से छूट सकता है।");
+  if(!s.flags["c"+n+"_decoded"]) return L("Return to the puzzle and decode the clue you picked up.","पहेली पर लौटो और उठाए हुए सुराग को समझो।");
+  if(!s.flags["c"+n+"_pattern"]) return L("Now trace the hidden pattern. You need both pieces.","अब छिपे पैटर्न को समझो। दोनों हिस्से चाहिए।");
+  return L("You have the pieces. The hidden way is ready.","तुम्हारे पास दोनों हिस्से हैं। छिपा रास्ता तैयार है।");
+}
+
 function render(){
   const app = document.getElementById("app");
   const s = S;
@@ -1040,7 +1502,10 @@ function render(){
   if (s.ending){
     if (window.updateGhostTownScene) window.updateGhostTownScene(s.scene || "midnight");
     const e = ENDINGS[s.ending];
-    const ch2ok = fetchKey("sunpur_ch2")==="1" && s.chapter===1;
+    const nextChapter = s.chapter < 25 ? s.chapter + 1 : null;
+    const canNext = nextChapter ? chapterUnlocked(nextChapter) : false;
+    const nextLabel = nextChapter ? L("Continue to Chapter "+nextChapter,"अध्याय "+nextChapter+" शुरू करो") : null;
+    const ch2ok = s.chapter===1 && chapterUnlocked(2);
     let stars = "";
     for (let i=0;i<5;i++) stars += '<span class="st" style="animation-delay:'+(0.25+i*0.18).toFixed(2)+'s">'+(i<e.stars?"★":"☆")+'</span>';
     app.innerHTML = header()+
@@ -1058,6 +1523,8 @@ function render(){
     document.getElementById("again").onclick = ()=>newGame(s.chapter);
     document.getElementById("share").onclick = share;
     if (ch2ok) document.getElementById("ch2").onclick = ()=>newGame(2);
+    const nextBtn = document.getElementById("nextChapter");
+    if (nextBtn) nextBtn.onclick = ()=>newGame(nextChapter);
     if (s.chapter===2) document.getElementById("ch1").onclick = ()=>newGame(1);
     setMood(s);
     s.prev = {health:s.health, food:s.food, nerve:s.nerve}; s.fresh = false; s.shake = false;
@@ -1065,8 +1532,7 @@ function render(){
   }
   if (window.updateGhostTownScene) window.updateGhostTownScene(s.scene);
   const sc = SCENES[s.scene];
-  const allowed = CONFIG.FREE_HINTS + s.extraHints;
-  const left = Math.max(0, allowed - s.hintsUsed);
+  const left = s.freeHintAvailable ? 1 : Math.max(0, s.extraHints);
   const bellIcon = (s.scene==="midnight" || s.scene==="temple") ? '<span class="bellicon">🔔</span> ' : '';
   let html = header()+
     '<div class="stats">'+bar(UI.health,"health",s.health,pv.health)+bar(UI.food,"food",s.food,pv.food)+bar(UI.nerve,"nerve",s.nerve,pv.nerve)+'</div>'+
@@ -1083,18 +1549,15 @@ function render(){
     html += '<button data-i="'+i+'"'+(hint?' disabled':'')+'>'+esc(tr(c.t))+(hint?'<span class="need">'+esc(tr(hint))+'</span>':'')+'</button>';
   });
   if (s.hintNote==="out"){
-    if (CONFIG.UPI_QR) {
-      html += '<div class="paybox">'+
-        '<p class="small" style="text-align:center;margin:4px 0 8px">'+esc(tr(UI.scanPay))+'</p>'+
-        '<img class="upi-qr" src="'+esc(CONFIG.UPI_QR)+'" alt="UPI QR ₹'+esc(CONFIG.UPI_AMOUNT)+'" width="220" height="220" loading="lazy">'+
-        '<p class="small" style="text-align:center;margin:10px 0 4px">'+esc(tr(UI.orCopy))+' <strong>'+esc(CONFIG.UPI_ID)+'</strong></p>'+
-        '<button class="hintbtn" id="copyupi">'+esc(tr(UI.copyUpi))+'</button>'+
-        '<button class="hintbtn" id="paid">'+esc(tr(UI.paid))+'</button>'+
-        '<p class="small" id="upinote" style="text-align:center;margin-top:6px"></p>'+
-        '</div>';
-    } else {
-      html += '<button class="hintbtn" id="paid">'+esc(tr(UI.paid))+'</button><p class="small" id="upinote"></p>';
-    }
+    html += '<div class="paybox">'+
+      '<p class="small" style="text-align:center;margin:0 0 8px;line-height:1.45">'+esc(tr(UI.nohints))+'</p>'+
+      '<p class="small" style="text-align:center;margin:4px 0 10px">'+esc(tr(UI.howPay))+'</p>'+
+      '<button class="hintbtn" id="buyhints">'+esc(tr(UI.buy))+'</button>'+
+      '<p class="small" id="upinote" style="text-align:center;margin-top:8px"></p>'+
+      (s.paymentCode ? '<p class="hint" style="text-align:center"><b>'+esc(tr(UI.codeIssued))+'</b><br><code>'+esc(s.paymentCode)+'</code></p>' : '')+
+      '</div>';
+  } else if (s.hintNote==="setup"){
+    html += '<p class="small" style="text-align:center;margin-top:10px">'+esc(tr(UI.hintSetup))+'</p>';
   } else {
     html += '<button class="hintbtn" id="hint">'+esc(tr(UI.hint(left)))+'</button>';
   }
@@ -1105,8 +1568,7 @@ function render(){
     b.onclick = ()=> choose(s.scene, parseInt(b.getAttribute("data-i"),10));
   });
   const hb = document.getElementById("hint"); if (hb) hb.onclick = useHint;
-  const copyBtn = document.getElementById("copyupi"); if (copyBtn) copyBtn.onclick = copyUpiId;
-  const paid = document.getElementById("paid"); if (paid) paid.onclick = grantPaidHints;
+  const buy = document.getElementById("buyhints"); if (buy) buy.onclick = startHintPurchase;
   setMood(s);
   animateBars();
   s.prev = {health:s.health, food:s.food, nerve:s.nerve}; s.fresh = false; s.shake = false;
@@ -1144,7 +1606,34 @@ if (document.addEventListener) document.addEventListener("visibilitychange", ()=
     if (soundOn && audioCtx) startAmbient();
   }
 });
-newGame(1);
+async function bootSunpur(){
+  if(CONFIG.SUPABASE_READY){
+    try{
+      const user = await initSupabasePlayer();
+      if(user?.id){ store("sunpur_player_id", user.id); }
+    }catch(e){
+      console.warn("Supabase auth unavailable:", e);
+    }
+  }
+  newGame(1);
+  if(CONFIG.SUPABASE_READY){
+    await syncHintState();
+    const pending=fetchKey("sunpur_pending_order");
+    if(pending){
+      try{
+        const os=await hintApi("order_status",pending);
+        if(os && os.order_id===pending && os.status==="PAID"){
+          S.paymentCode=os.payment_code||null;
+          store("sunpur_pending_order","");
+        }else{
+          S.pendingOrderId=pending;
+        }
+      }catch(e){}
+    }
+    render();
+  }
+}
+bootSunpur();
 resizeFx();
 applyFx();
 
@@ -1242,7 +1731,19 @@ applyFx();
 
   window.updateGhostTownScene=function(sceneId){
     const id=String(sceneId||"courtyard");
-    const sc=SCENE_DATA[id]||SCENE_DATA.courtyard;
+    let sc=SCENE_DATA[id];
+    if(!sc){
+      const n=(window.S&&window.S.chapter)||3;
+      const hue=(n*29)%360;
+      const phase=(n%4);
+      const atms=["mist","wind","whisper","heartbeat"];
+      sc={
+        bg:"linear-gradient(hsl("+hue+" 30% 9%),hsl("+(hue+38)+" 25% 20%),#05070b)",
+        cap:"Sunpur • Chapter "+n,
+        atm:atms[phase],
+        art:`<div class="art-gate-light"></div><div class="art-gate" style="opacity:.55"><div class="art-chain"></div></div><div class="art-figure" style="opacity:.35;left:${35+(n%4)*10}%"></div><div class="art-ground"></div>`
+      };
+    }
     /* Only touch the DOM when the scene actually changed. Staying in the same
        place (picking up an item, reading a hint) now costs nothing. */
     if(id!==currentScene){
