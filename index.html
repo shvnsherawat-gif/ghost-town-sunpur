@@ -460,14 +460,31 @@ async function ensureSupabaseSession(){
     });
   }
 
-  let session = null;
+  // Reuse the existing anonymous user whenever possible.
   const current = await sb.auth.getSession();
   if(current.error) throw current.error;
-  session = current.data?.session || null;
+  let session = current.data?.session || null;
 
-  if(!session){
+  // Refresh an existing session before creating a new anonymous identity.
+  // This preserves any paid-hint balance already attached to the user.
+  if(session?.access_token){
+    const refreshed = await sb.auth.refreshSession();
+    if(!refreshed.error && refreshed.data?.session?.access_token){
+      session = refreshed.data.session;
+    } else {
+      try{
+        const check = await sb.auth.getUser(session.access_token);
+        if(check.error || !check.data?.user) session = null;
+      }catch(_e){ session = null; }
+    }
+  }
+
+  // Only create an anonymous user when there is no usable session.
+  if(!session?.access_token){
     const r = await sb.auth.signInAnonymously();
-    if(r.error) throw r.error;
+    if(r.error){
+      throw new Error("anonymous_signin_failed: "+(r.error.message || r.error.code || String(r.error)));
+    }
     session = r.data?.session || null;
   }
 
@@ -1159,17 +1176,22 @@ async function startChapterAndSync(chapter){
 }
 
 async function hintApi(action, orderId){
-  if (!CONFIG.SUPABASE_READY) throw new Error("setup");
-  const headers = await authHeaders(orderId ? {"x-sunpur-order-id":orderId} : {});
+  if(!CONFIG.SUPABASE_READY) throw new Error("setup");
+  await ensureSupabaseSession();
   const payload = {action};
   if (action === "state" || action === "consume_free") payload.chapter = S?.chapter || 1;
   if(orderId) payload.order_id = orderId;
-  const res = await fetch(CONFIG.SUPABASE_FN(CONFIG.HINT_API_FUNCTION), {
-    method:"POST", headers, body:JSON.stringify(payload)
+
+  const result = await sb.functions.invoke(CONFIG.HINT_API_FUNCTION, {
+    body: payload,
+    headers: orderId ? {"x-sunpur-order-id":orderId} : {}
   });
-  let data=null; try{ data=await res.json(); }catch(e){}
-  if(!res.ok) throw new Error((data&&data.error)||"request_failed");
-  return data;
+  if(result.error){
+    const err = new Error(result.error.message || "hint_api_failed");
+    err.cause = result.error;
+    throw err;
+  }
+  return result.data;
 }
 
 async function syncHintState(){
@@ -1224,48 +1246,49 @@ async function useHint(){
 async function startHintPurchase(){
   const note=document.getElementById("upinote");
   const btn=document.getElementById("buyhints");
-  const show=t=>{if(note) note.textContent=t;};
+  const show=t=>{ if(note) note.textContent=t; };
   if(!CONFIG.SUPABASE_READY){ show(tr(UI.codeSetup)); return; }
   if(btn) btn.disabled=true;
-  show(tr(UI.paymentStarting));
+  show("Connecting to the secure payment service…");
 
-  // FORENSIC FIX: the previous version opened a blank tab before authentication.
-  // If anonymous Supabase sign-in failed, authHeaders() threw before fetch(), so
-  // create-hint-order received NO invocation at all. Authenticate first and only
-  // then open the payment window.
-  let session;
-  try{
-    session=await ensureSupabaseSession();
-  }catch(e){
-    const msg=e instanceof Error ? e.message : String(e);
-    console.error("Sunpur payment auth failure:", e);
-    show("Payment connection error: "+msg);
-    if(btn) btn.disabled=false;
-    return;
-  }
-  if(!session?.access_token){
-    show("Payment connection error: no Supabase access token.");
-    if(btn) btn.disabled=false;
-    return;
-  }
-
-  // Open only after authentication succeeds, so a failed auth step never leaves
-  // the player with an unexplained blank tab.
+  // Open the popup synchronously from the click so the browser allows it.
+  // It stays blank until the server returns the real Razorpay URL.
   let paymentWindow=null;
-  try{ paymentWindow=window.open("about:blank","_blank","noopener,noreferrer"); }catch(e){}
+  try{ paymentWindow=window.open("about:blank","_blank","noopener,noreferrer"); }catch(_e){}
 
   try{
-    const res=await fetch(CONFIG.SUPABASE_FN(CONFIG.CREATE_ORDER_FUNCTION),{
-      method:"POST",
-      headers:await authHeaders(),
-      body:JSON.stringify({amount:CONFIG.HINT_PRICE_RUPEES})
+    // Make sure we have a real Supabase user JWT before making the Edge
+    // Function request. The previous version could stop here, which created
+    // exactly the observed "no invocation" symptom.
+    const session=await ensureSupabaseSession();
+    if(!session?.access_token) throw new Error("no_access_token");
+
+    // Use supabase-js so the current user JWT is automatically sent in
+    // Authorization and the public project key is sent in apikey.
+    const result=await sb.functions.invoke(CONFIG.CREATE_ORDER_FUNCTION, {
+      body:{amount:CONFIG.HINT_PRICE_RUPEES}
     });
-    let data=null; try{data=await res.json();}catch(e){}
-    if(!res.ok || !data || !data.ok || !data.checkout_url || !data.order_id){
+
+    if(result.error){
+      let detail=result.error.message || "create-hint-order_failed";
+      try{
+        if(result.error.context && typeof result.error.context.json === "function"){
+          const body=await result.error.context.json();
+          if(body?.error) detail=String(body.error);
+        }
+      }catch(_e){}
+      console.error("Sunpur create-hint-order failure:",result.error);
       if(paymentWindow && !paymentWindow.closed) paymentWindow.close();
-      const detail=(data&&data.error) ? String(data.error) : ("HTTP "+res.status);
-      console.error("Sunpur create-hint-order failure:", {status:res.status,data});
       show("Payment connection error: "+detail);
+      if(btn) btn.disabled=false;
+      return;
+    }
+
+    const data=result.data;
+    if(!data || !data.ok || !data.checkout_url || !data.order_id){
+      console.error("Sunpur invalid create-hint-order response:",data);
+      if(paymentWindow && !paymentWindow.closed) paymentWindow.close();
+      show("Payment connection error: the payment link was not created.");
       if(btn) btn.disabled=false;
       return;
     }
@@ -1276,19 +1299,25 @@ async function startHintPurchase(){
 
     if(paymentWindow && !paymentWindow.closed){
       paymentWindow.location.href=data.checkout_url;
-    }else{
-      window.location.href=data.checkout_url;
-      return;
+    }else if(note){
+      // Popup was blocked: leave the game open and give the player a normal
+      // clickable link instead of silently failing.
+      note.textContent="Popup blocked. ";
+      const a=document.createElement("a");
+      a.href=data.checkout_url;
+      a.target="_blank";
+      a.rel="noopener noreferrer";
+      a.textContent="Open Razorpay checkout";
+      a.style.color="var(--accent)";
+      a.style.fontWeight="700";
+      note.appendChild(a);
     }
 
-    // The webhook performs the actual entitlement. We only poll our own
-    // Supabase order status here so the page can update as soon as payment is
-    // confirmed. The browser never declares payment successful by itself.
     await waitForPayment(data.order_id,show,btn);
   }catch(e){
-    if(paymentWindow && !paymentWindow.closed) paymentWindow.close();
     const msg=e instanceof Error ? e.message : String(e);
-    console.error("Sunpur payment request failure:", e);
+    console.error("Sunpur payment flow failure:",e);
+    if(paymentWindow && !paymentWindow.closed) paymentWindow.close();
     show("Payment connection error: "+msg);
     if(btn) btn.disabled=false;
   }
@@ -1660,7 +1689,8 @@ function render(){
     b.onclick = ()=> choose(s.scene, parseInt(b.getAttribute("data-i"),10));
   });
   const hb = document.getElementById("hint"); if (hb) hb.onclick = useHint;
-  const buy = document.getElementById("buyhints"); if (buy) buy.onclick = startHintPurchase;
+  const buy = document.getElementById("buyhints");
+  if (buy) buy.onclick = (ev)=>{ ev.preventDefault(); startHintPurchase(); };
   setMood(s);
   animateBars();
   s.prev = {health:s.health, food:s.food, nerve:s.nerve}; s.fresh = false; s.shake = false;
