@@ -1616,7 +1616,8 @@ function render(){
     const hint = c.need ? c.need(s) : null;
     html += '<button data-i="'+i+'"'+(hint?' disabled':'')+'>'+esc(tr(c.t))+(hint?'<span class="need">'+esc(tr(hint))+'</span>':'')+'</button>';
   });
-  if (s.hintNote==="out"){
+  const needsPayment = !s.freeHintAvailable && s.extraHints<=0;
+  if (s.hintNote==="out" || needsPayment){
     html += '<div class="paybox">'+
       '<p class="small" style="text-align:center;margin:0 0 8px;line-height:1.45">'+esc(tr(UI.nohints))+'</p>'+
       '<p class="small" style="text-align:center;margin:4px 0 10px">'+esc(tr(UI.howPay))+'</p>'+
