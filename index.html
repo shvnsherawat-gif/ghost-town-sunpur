@@ -36,6 +36,8 @@ button.hintbtn{background:transparent;border-style:dashed;color:var(--nerve);tex
 .small{font-family:system-ui,"Nirmala UI",sans-serif;font-size:12px;color:var(--mute)}
 .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .row button{text-align:center;flex:1 1 140px}
+.paybox{margin-top:12px;padding:12px;background:#141820;border:1px solid #2a3140;border-radius:12px;text-align:center}
+.upi-qr{display:block;margin:0 auto;border-radius:10px;background:#fff;padding:6px;max-width:100%;height:auto;box-shadow:0 4px 18px rgba(0,0,0,.35)}
 
 /* ---------- ANIMATION LAYERS ---------- */
 body[data-mood="dusk"]{background-color:#1a1420}
@@ -429,18 +431,21 @@ button.mini+button.mini{margin-left:6px}
 const CONFIG = {
   FREE_HINTS: 3,          // free hints per playthrough
   UPI_ID: "8383028896@pthdfc",        // your UPI / Paytm handle
-  UPI_NAME: "Ghost Town Sunpur",      // name shown inside the payment app
+  UPI_NAME: "Shivani Choudhary",      // name shown inside the payment app / QR
   UPI_AMOUNT: "10",                   // amount in rupees ("" = let the payer choose)
   EXTRA_HINTS_PER_PURCHASE: 3
 };
-/* Built from the fields above. UPI deep links only open on a phone that has a
-   UPI app installed; on desktop the ID is shown instead so it can be copied. */
+/* Built from the fields above. Used for QR + optional deep link. */
 CONFIG.UPI_LINK = CONFIG.UPI_ID
-  ? "upi://pay?pa="+CONFIG.UPI_ID   // VPA goes in raw; some UPI apps mis-read a %40
+  ? "upi://pay?pa="+CONFIG.UPI_ID
     + "&pn="+encodeURIComponent(CONFIG.UPI_NAME)
     + (CONFIG.UPI_AMOUNT ? "&am="+encodeURIComponent(CONFIG.UPI_AMOUNT) : "")
     + "&cu=INR"
     + "&tn="+encodeURIComponent("Hints")
+  : "";
+/* Dynamic QR image (₹10 pre-filled). Works with any UPI app when scanned. */
+CONFIG.UPI_QR = CONFIG.UPI_LINK
+  ? "https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data="+encodeURIComponent(CONFIG.UPI_LINK)
   : "";
 
 /* ============ BILINGUAL HELPERS ============ */
@@ -462,9 +467,11 @@ const UI = {
   copied: L("Copied. Paste it in WhatsApp.","कॉपी हो गया। WhatsApp में चिपकाओ।"),
   hint: n => L("Hint ("+n+" left)","संकेत ("+n+" बचे)"),
   nohints: L("No free hints left this run.","इस बार के मुफ़्त संकेत खत्म हो गए।"),
-  buy: L("Buy more hints","और संकेत खरीदो"), paid: L("I've paid, give me hints","मैंने भुगतान कर दिया, संकेत दो"),
-  payOpen: L("Opening your UPI app…","तुम्हारा UPI ऐप खुल रहा है…"),
-  payManual: a => L("Pay "+(a?"₹"+a+" ":"")+"to this UPI ID, then tap \"I've paid\": ","इस UPI आईडी पर "+(a?"₹"+a+" ":"")+"भेजो, फिर \"मैंने भुगतान कर दिया\" दबाओ: "),
+  buy: L("Buy more hints (₹10)","और संकेत खरीदें (₹10)"),
+  paid: L("I've paid, give me hints","मैंने भुगतान कर दिया, संकेत दो"),
+  scanPay: L("Scan this QR with any UPI app (₹10)","किसी भी UPI ऐप से इस QR को स्कैन करें (₹10)"),
+  orCopy: L("Or copy UPI ID:","या UPI आईडी कॉपी करें:"),
+  copyUpi: L("Copy UPI ID","UPI आईडी कॉपी करो"),
   payCopied: L("UPI ID copied.","UPI आईडी कॉपी हो गई।"),
   soundOn: L("Sound on","आवाज़ चालू"), soundOff: L("Sound off","आवाज़ बंद"),
   growl: L("Your stomach growls.","पेट में भूख कुलबुलाती है।")
@@ -754,26 +761,17 @@ function useHint(){
 }
 function grantPaidHints(){ S.extraHints += CONFIG.EXTRA_HINTS_PER_PURCHASE; S.hintNote = null; render(); }
 
-/* Tries to open a UPI app. If nothing handles the link (desktop, or no UPI app
-   installed) the page stays visible, so we show the plain UPI ID instead and
-   copy it to the clipboard — the player is never left with a dead button. */
-function openUpi(){
+function copyUpiId(){
   const note = document.getElementById("upinote");
-  const show = t => { if (note) note.textContent = t; };
-  if (!CONFIG.UPI_LINK) return;
-  show(tr(UI.payOpen));
-  try { window.location.href = CONFIG.UPI_LINK; } catch(e){}
-  setTimeout(()=>{
-    if (document.hidden) return;   // a UPI app took over; nothing to fall back to
-    const manual = tr(UI.payManual(CONFIG.UPI_AMOUNT)) + CONFIG.UPI_ID;
-    show(manual);
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText)
-        navigator.clipboard.writeText(CONFIG.UPI_ID)
-          .then(()=> show(manual + " — " + tr(UI.payCopied)))
-          .catch(()=>{});
-    } catch(e){}
-  }, 1200);
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(CONFIG.UPI_ID)
+        .then(()=>{ if (note) note.textContent = tr(UI.payCopied); })
+        .catch(()=>{ if (note) note.textContent = CONFIG.UPI_ID; });
+    } else if (note) {
+      note.textContent = CONFIG.UPI_ID;
+    }
+  } catch(e){ if (note) note.textContent = CONFIG.UPI_ID; }
 }
 
 /* ============ STORAGE ============ */
@@ -1085,7 +1083,18 @@ function render(){
     html += '<button data-i="'+i+'"'+(hint?' disabled':'')+'>'+esc(tr(c.t))+(hint?'<span class="need">'+esc(tr(hint))+'</span>':'')+'</button>';
   });
   if (s.hintNote==="out"){
-    if (CONFIG.UPI_LINK) html += '<button class="hintbtn" id="buy">'+esc(tr(UI.buy))+'</button><button class="hintbtn" id="paid">'+esc(tr(UI.paid))+'</button><p class="small" id="upinote"></p>';
+    if (CONFIG.UPI_QR) {
+      html += '<div class="paybox">'+
+        '<p class="small" style="text-align:center;margin:4px 0 8px">'+esc(tr(UI.scanPay))+'</p>'+
+        '<img class="upi-qr" src="'+esc(CONFIG.UPI_QR)+'" alt="UPI QR ₹'+esc(CONFIG.UPI_AMOUNT)+'" width="220" height="220" loading="lazy">'+
+        '<p class="small" style="text-align:center;margin:10px 0 4px">'+esc(tr(UI.orCopy))+' <strong>'+esc(CONFIG.UPI_ID)+'</strong></p>'+
+        '<button class="hintbtn" id="copyupi">'+esc(tr(UI.copyUpi))+'</button>'+
+        '<button class="hintbtn" id="paid">'+esc(tr(UI.paid))+'</button>'+
+        '<p class="small" id="upinote" style="text-align:center;margin-top:6px"></p>'+
+        '</div>';
+    } else {
+      html += '<button class="hintbtn" id="paid">'+esc(tr(UI.paid))+'</button><p class="small" id="upinote"></p>';
+    }
   } else {
     html += '<button class="hintbtn" id="hint">'+esc(tr(UI.hint(left)))+'</button>';
   }
@@ -1096,7 +1105,7 @@ function render(){
     b.onclick = ()=> choose(s.scene, parseInt(b.getAttribute("data-i"),10));
   });
   const hb = document.getElementById("hint"); if (hb) hb.onclick = useHint;
-  const buy = document.getElementById("buy"); if (buy) buy.onclick = openUpi;
+  const copyBtn = document.getElementById("copyupi"); if (copyBtn) copyBtn.onclick = copyUpiId;
   const paid = document.getElementById("paid"); if (paid) paid.onclick = grantPaidHints;
   setMood(s);
   animateBars();
