@@ -3,7 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ghost Town: Sunpur</title>
+<title>Ghost Town: Sunpur — Play</title>
+<meta property="og:title" content="Ghost Town: Sunpur — Play">
+<meta property="og:description" content="Enter the mystery of Sunpur. Survive, uncover the truth, and discover the ending.">
+<meta property="og:type" content="website">
+<meta name="description" content="Ghost Town: Sunpur — a text survival mystery game.">
 <style>
 :root{--bg:#0d0f14;--card:#171a22;--ink:#e8e6df;--mute:#8b8f9a;--accent:#e0a84a;--hp:#d9534f;--food:#e0a84a;--nerve:#6aa7e0;--line:#262a35}
 *{box-sizing:border-box}
@@ -40,6 +44,37 @@ button.hintbtn{background:transparent;border-style:dashed;color:var(--nerve);tex
 .upi-qr{display:block;margin:0 auto;border-radius:10px;background:#fff;padding:6px;max-width:100%;height:auto;box-shadow:0 4px 18px rgba(0,0,0,.35)}
 .utr-input{display:block;width:100%;max-width:160px;margin:0 auto 8px;padding:10px 12px;font-size:18px;letter-spacing:.2em;text-align:center;border-radius:8px;border:1px solid #3a4255;background:#0e1118;color:var(--ink);font-family:system-ui,sans-serif}
 .utr-input:focus{outline:none;border-color:var(--accent)}
+
+/* ---------- NEW: landing/play, large language selector, hint plans, social share ---------- */
+.start-screen{min-height:calc(100vh - 34px);display:flex;align-items:center;justify-content:center;padding:26px 0;position:relative;z-index:2}
+.start-card{width:100%;max-width:560px;text-align:center;padding:28px 22px;background:rgba(12,15,22,.95);border:1px solid rgba(255,255,255,.16);border-radius:18px;box-shadow:0 22px 70px rgba(0,0,0,.42)}
+.start-card h1{font-size:34px;letter-spacing:.08em;margin:0 0 6px}
+.start-card .start-sub{font-family:system-ui,"Nirmala UI",sans-serif;color:var(--mute);font-size:15px;margin-bottom:20px}
+.play-button{display:inline-flex;align-items:center;justify-content:center;gap:12px;min-width:220px;min-height:76px;padding:14px 24px;border-radius:18px;background:var(--accent);color:#1a1405;border:2px solid var(--accent);font:800 28px/1 system-ui,"Nirmala UI",sans-serif;letter-spacing:.04em;text-align:center;box-shadow:0 12px 34px rgba(0,0,0,.35);transition:transform .16s ease,box-shadow .16s ease}
+.play-button:hover{transform:translateY(-2px);box-shadow:0 16px 38px rgba(0,0,0,.42)}
+.play-icon{font-size:34px;line-height:1}
+.start-lang{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:0 0 20px}
+.lang-btn{width:auto;min-width:150px;min-height:58px;padding:10px 22px;font:900 22px/1.1 system-ui,"Nirmala UI",sans-serif;text-align:center;border:2px solid var(--line);background:#20242f;color:var(--ink);border-radius:12px}
+.lang-btn.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(224,168,74,.18);background:#2a2b34}
+.lang-switch{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.top .lang-btn{min-width:94px;min-height:42px;padding:6px 12px;font-size:17px}
+.hint-area{display:flex;flex-direction:column;gap:8px;margin-top:14px;margin-bottom:12px}
+.hint-area>.hintbtn{margin-top:0}
+.hint-plan-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.hint-plan{font-weight:800;text-align:center;font-family:system-ui,"Nirmala UI",sans-serif}
+.hint-plan small{display:block;font-size:11px;font-weight:600;color:var(--mute);margin-top:3px}
+.hint-plan.best{border-color:var(--accent)}
+.social-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.social-row button{flex:1 1 150px;text-align:center;font-family:system-ui,"Nirmala UI",sans-serif;font-weight:800}
+.social-facebook{border-color:#6f8cc9}
+.social-whatsapp{border-color:#58b878}
+@media(max-width:520px){
+  .hint-plan-grid{grid-template-columns:1fr}
+  .start-card h1{font-size:28px}
+  .play-button{min-width:190px}
+  .top{align-items:flex-start}
+  .lang-switch{width:100%;justify-content:flex-end}
+}
 
 /* ---------- ANIMATION LAYERS ---------- */
 body[data-mood="dusk"]{background-color:#1a1420}
@@ -433,10 +468,15 @@ button.mini+button.mini{margin-left:6px}
 <script>
 /* ============ CONFIG (edit these) ============ */
 const CONFIG = {
-  /* Hint economy: exactly 1 free hint per chapter, then 2 hints per ₹10 purchase. */
+  /* Hint economy: exactly 1 free hint per chapter, then paid hint packs. */
   FREE_HINTS: 1,
   EXTRA_HINTS_PER_PURCHASE: 2,
   HINT_PRICE_RUPEES: 10,
+  HINT_PLANS: [
+    { amount: 10, hints: 2, label: "₹10", sub: "2 hints" },
+    { amount: 50, hints: 10, label: "₹50", sub: "10 hints" },
+    { amount: 100, hints: 20, label: "₹100", sub: "20 hints" }
+  ],
 
   /* Supabase public settings. Never put a Supabase secret/service key here. */
   SUPABASE_URL: "https://cwddeqcixxgklhsjpava.supabase.co",
@@ -536,7 +576,7 @@ const UI = {
   paid: L("Check payment","भुगतान जाँचें"),
   paymentStarting: L("Opening Razorpay secure checkout…","Razorpay सुरक्षित भुगतान खोला जा रहा है…"),
   paymentWaiting: L("Payment started. Complete it, then return here. We will verify it automatically.","भुगतान शुरू हो गया है। भुगतान पूरा करके यहाँ लौटें। हम इसे अपने-आप सत्यापित करेंगे।"),
-  paymentSuccess: L("Payment verified. 2 hints added.","भुगतान सत्यापित। 2 संकेत जोड़ दिए गए।"),
+  paymentSuccess: n => L("Payment verified. "+n+" hints added.","भुगतान सत्यापित। "+n+" संकेत जोड़ दिए गए।"),
   codeIssued: L("Your paid-hint code:","आपका भुगतान-हिंट कोड:"),
   paymentPending: L("Payment is not confirmed yet. Please complete the payment and try again.","भुगतान अभी सत्यापित नहीं हुआ। भुगतान पूरा करके फिर कोशिश करें।"),
   paymentFailed: L("Payment was not successful.","भुगतान सफल नहीं हुआ।"),
@@ -1243,20 +1283,17 @@ async function useHint(){
   render();
 }
 
-async function startHintPurchase(){
+async function startHintPurchase(amount,hints){
   const note=document.getElementById("upinote");
-  const btn=document.getElementById("buyhints");
   const show=t=>{ if(note) note.textContent=t; };
+  const buttons=document.querySelectorAll(".hint-plan");
   if(!CONFIG.SUPABASE_READY){ show(tr(UI.codeSetup)); return; }
-  if(btn) btn.disabled=true;
+  buttons.forEach(b=>b.disabled=true);
   show("Creating a secure payment link…");
 
   try{
-    // IMPORTANT: do not open about:blank here. A blank popup can make it look
-    // like Razorpay opened while the request never reached Supabase.
     const session=await ensureSupabaseSession();
     if(!session?.access_token) throw new Error("no_access_token");
-
     const endpoint=CONFIG.SUPABASE_FN(CONFIG.CREATE_ORDER_FUNCTION);
     const res=await fetch(endpoint, {
       method:"POST",
@@ -1265,40 +1302,33 @@ async function startHintPurchase(){
         "apikey":CONFIG.SUPABASE_ANON_KEY,
         "Authorization":"Bearer "+session.access_token
       },
-      body:JSON.stringify({amount:CONFIG.HINT_PRICE_RUPEES}),
+      body:JSON.stringify({amount:Number(amount)}),
       cache:"no-store"
     });
-
     let data=null;
     try{ data=await res.json(); }catch(_e){}
-
     if(!res.ok){
       const detail=(data && data.error) ? String(data.error) : ("HTTP "+res.status);
-      console.error("Sunpur create-hint-order HTTP failure:", res.status, data);
+      console.error("Sunpur create-hint-order HTTP failure:",res.status,data);
       show("Payment connection error: "+detail);
-      if(btn) btn.disabled=false;
+      buttons.forEach(b=>b.disabled=false);
       return;
     }
-
     if(!data || !data.ok || !data.checkout_url || !data.order_id){
-      console.error("Sunpur invalid create-hint-order response:", data);
+      console.error("Sunpur invalid create-hint-order response:",data);
       show("Payment connection error: the payment link was not created.");
-      if(btn) btn.disabled=false;
+      buttons.forEach(b=>b.disabled=false);
       return;
     }
-
     S.pendingOrderId=data.order_id;
+    S.pendingHintPlan={amount:Number(amount),hints:Number(hints)};
     store("sunpur_pending_order",data.order_id);
-
-    // Navigate directly to the real Razorpay URL. This removes the blank-tab
-    // failure mode completely. When the player returns to the game, bootSunpur()
-    // checks the stored pending order against the server.
     window.location.assign(data.checkout_url);
   }catch(e){
     const msg=e instanceof Error ? e.message : String(e);
     console.error("Sunpur payment flow failure:",e);
     show("Payment connection error: "+msg);
-    if(btn) btn.disabled=false;
+    buttons.forEach(b=>b.disabled=false);
   }
 }
 
@@ -1313,7 +1343,7 @@ async function waitForPayment(orderId,show,btn){
         await syncHintState();
         S.paymentCode = data.payment_code || S.paymentCode || null;
         store("sunpur_pending_order","");
-        show(tr(UI.paymentSuccess));
+        show(tr(UI.paymentSuccess(Number(data.hints_granted||2))));
         playSound("success");
         if(btn) btn.disabled=false;
         setTimeout(()=>render(),500);
@@ -1339,8 +1369,15 @@ function bar(label,key,val,prevVal){
   return '<div class="stat'+cls+'">'+esc(tr(label))+' '+val+'/10<div class="bar"><div class="fill" data-to="'+(val*10)+'" style="width:'+(prevVal*10)+'%;background:'+BAR_COLOR[key]+'"></div></div></div>';
 }
 function header(){
-  return '<div class="top"><h1>'+esc(tr(UI.title))+'</h1><span><button class="mini" id="fxb">FX '+(fxOn?"✓":"✗")+'</button><button class="mini" id="soundb">🔊 '+(soundOn?"✓":"✗")+'</button><button class="mini" id="lang">'+(lang==="en"?"हिंदी":"English")+'</button></span></div>'+
-         '<div class="sub">'+esc(tr(UI.sub))+' · '+esc(tr(UI.ch(S.chapter)))+'</div>';
+  return '<div class="top"><h1>'+esc(tr(UI.title))+'</h1><span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end">'+
+    '<button class="mini" id="fxb">FX '+(fxOn?"✓":"✗")+'</button>'+
+    '<button class="mini" id="soundb">🔊 '+(soundOn?"✓":"✗")+'</button>'+
+    '<span class="lang-switch">'+
+      '<button class="lang-btn '+(lang==="en"?"active":"")+'" id="lang-en">English</button>'+
+      '<button class="lang-btn '+(lang==="hi"?"active":"")+'" id="lang-hi">हिंदी</button>'+
+    '</span>'+
+  '</span></div>'+
+  '<div class="sub">'+esc(tr(UI.sub))+' · '+esc(tr(UI.ch(S.chapter)))+'</div>';
 }
 
 /* ---------- SOUND ENGINE: environmental, scene-aware Web Audio ---------- */
@@ -1494,7 +1531,10 @@ function toggleSound(){
 }
 
 function bindTop(){
-  document.getElementById("lang").onclick = ()=>{ lang = lang==="en" ? "hi" : "en"; store("sunpur_lang", lang); render(); };
+  const langEn=document.getElementById("lang-en");
+  const langHi=document.getElementById("lang-hi");
+  if(langEn) langEn.onclick = ()=>{ lang="en"; store("sunpur_lang", lang); render(); };
+  if(langHi) langHi.onclick = ()=>{ lang="hi"; store("sunpur_lang", lang); render(); };
   document.getElementById("fxb").onclick = ()=>{ fxOn = !fxOn; store("sunpur_fx", fxOn?"1":"0"); applyFx(); playSound("click"); render(); };
   const sb = document.getElementById("soundb");
   if (sb) sb.onclick = toggleSound;
@@ -1582,6 +1622,8 @@ function applyFx(){
   else { if (rafId && typeof cancelAnimationFrame==="function") cancelAnimationFrame(rafId); rafId = null; }
 }
 
+function planHintText(n){ return lang==="hi" ? n+" संकेत" : n+" hints"; }
+
 function getChapterHint(s){
   const n=s.chapter;
   if(n<3) return null;
@@ -1614,13 +1656,12 @@ function render(){
       (s.msg.length ? '<p class="msg">'+esc(s.msg.map(tr).join(" "))+'</p>' : '')+
       '<p class="story">'+esc(tr(e.text))+'</p>'+
       '<p class="small">'+esc(tr(UI.found(found,total)))+'</p>'+
-      '<div class="row"><button class="primary" id="again">'+esc(tr(UI.again))+'</button><button class="primary" id="share">'+esc(tr(UI.share))+'</button>'+
-      (ch2ok ? '<button class="primary" id="ch2">'+esc(tr(UI.next))+'</button>' : '')+
-      (s.chapter===2 ? '<button class="primary" id="ch1">'+esc(tr(UI.ch1))+'</button>' : '')+
-      '</div><p class="small" id="shared"></p></div>';
+      '<div class="row"><button class="primary" id="again">'+esc(tr(UI.again))+'</button><button class="primary" id="share">'+esc(tr(UI.share))+'</button>'+      (ch2ok ? '<button class="primary" id="ch2">'+esc(tr(UI.next))+'</button>' : '')+      (s.chapter===2 ? '<button class="primary" id="ch1">'+esc(tr(UI.ch1))+'</button>' : '')+      '</div>'+      '<div class="social-row">'+        '<button class="social-facebook" id="share-facebook">📘 '+esc(tr(UI.facebook))+'</button>'+        '<button class="social-whatsapp" id="share-whatsapp">🟢 '+esc(tr(UI.whatsapp))+'</button>'+      '</div>'+      '<p class="small" id="shared"></p></div>';
     bindTop();
     document.getElementById("again").onclick = ()=>startChapterAndSync(s.chapter);
     document.getElementById("share").onclick = share;
+    document.getElementById("share-facebook").onclick = shareFacebook;
+    document.getElementById("share-whatsapp").onclick = shareWhatsApp;
     if (ch2ok) document.getElementById("ch2").onclick = ()=>startChapterAndSync(2);
     const nextBtn = document.getElementById("nextChapter");
     if (nextBtn) nextBtn.onclick = ()=>startChapterAndSync(nextChapter);
@@ -1634,33 +1675,22 @@ function render(){
   const left = (s.freeHintAvailable ? 1 : 0) + Math.max(0, s.extraHints);
   const bellIcon = (s.scene==="midnight" || s.scene==="temple") ? '<span class="bellicon">🔔</span> ' : '';
   let html = header()+
-    '<div class="stats">'+bar(UI.health,"health",s.health,pv.health)+bar(UI.food,"food",s.food,pv.food)+bar(UI.nerve,"nerve",s.nerve,pv.nerve)+'</div>'+
-    '<div class="meta"><span>'+esc(tr(timeLabel(s)))+'</span><span>'+esc(tr(UI.carrying))+(s.inv.length? esc(s.inv.map(itemName).join(", ")) : esc(tr(UI.nothing)))+'</span></div>'+
-    '<div class="card cinematic-foreground'+(fresh?' enter':'')+(shake?' shake':'')+(s.scene==="midnight"?' mid':'')+'"><h2>'+bellIcon+esc(tr(sc.title))+'</h2>'+
-    (s.msg.length ? '<p class="msg">'+esc(s.msg.map(tr).join(" "))+'</p>' : '')+
-    '<p>'+esc(tr(sc.text(s)))+'</p>'+
-    (s.hint ? '<p class="hint">'+esc(tr(s.hint))+'</p>' : '')+
-    (s.hintNote==="out" ? '<p class="hint">'+esc(tr(UI.nohints))+'</p>' : '')+
-    '<div class="choices">';
-  sc.choices.forEach((c,i)=>{
-    if (!isVisible(s.scene,i,c,s)) return;
-    const hint = c.need ? c.need(s) : null;
-    html += '<button data-i="'+i+'"'+(hint?' disabled':'')+'>'+esc(tr(c.t))+(hint?'<span class="need">'+esc(tr(hint))+'</span>':'')+'</button>';
-  });
+    '<div class="stats">'+bar(UI.health,"health",s.health,pv.health)+bar(UI.food,"food",s.food,pv.food)+bar(UI.nerve,"nerve",s.nerve,pv.nerve)+'</div>'+    '<div class="meta"><span>'+esc(tr(timeLabel(s)))+'</span><span>'+esc(tr(UI.carrying))+(s.inv.length? esc(s.inv.map(itemName).join(", ")) : esc(tr(UI.nothing)))+'</span></div>'+    '<div class="card cinematic-foreground'+(fresh?' enter':'')+(shake?' shake':'')+(s.scene==="midnight"?' mid':'')+'"><h2>'+bellIcon+esc(tr(sc.title))+'</h2>'+    (s.msg.length ? '<p class="msg">'+esc(s.msg.map(tr).join(" "))+'</p>' : '')+    '<p>'+esc(tr(sc.text(s)))+'</p>'+    (s.hint ? '<p class="hint">'+esc(tr(s.hint))+'</p>' : '')+    '<div class="hint-area">';
   const needsPayment = !s.freeHintAvailable && s.extraHints<=0;
   if (s.hintNote==="out" || needsPayment){
     html += '<div class="paybox">'+
-      '<p class="small" style="text-align:center;margin:0 0 8px;line-height:1.45">'+esc(tr(UI.nohints))+'</p>'+
-      '<p class="small" style="text-align:center;margin:4px 0 10px">'+esc(tr(UI.howPay))+'</p>'+
-      '<button class="hintbtn" id="buyhints">'+esc(tr(UI.buy))+'</button>'+
-      '<p class="small" id="upinote" style="text-align:center;margin-top:8px"></p>'+
-      (s.paymentCode ? '<p class="hint" style="text-align:center"><b>'+esc(tr(UI.codeIssued))+'</b><br><code>'+esc(s.paymentCode)+'</code></p>' : '')+
-      '</div>';
+      '<p class="small" style="text-align:center;margin:0 0 8px;line-height:1.45">'+esc(tr(UI.nohints))+'</p>'+      '<p class="small" style="text-align:center;margin:4px 0 10px">'+esc(tr(UI.choosePack))+'</p>'+      '<div class="hint-plan-grid">'+      '<button class="hint-plan" data-amount="10" data-hints="2">₹10<small>'+planHintText(2)+'</small></button>'+      '<button class="hint-plan" data-amount="50" data-hints="10">₹50<small>'+planHintText(10)+'</small></button>'+      '<button class="hint-plan best" data-amount="100" data-hints="20">₹100<small>'+planHintText(20)+'</small></button>'+      '</div>'+      '<p class="small" id="upinote" style="text-align:center;margin-top:8px"></p>'+      (s.paymentCode ? '<p class="hint" style="text-align:center"><b>'+esc(tr(UI.codeIssued))+'</b><br><code>'+esc(s.paymentCode)+'</code></p>' : '')+      '</div>';
   } else if (s.hintNote==="setup"){
     html += '<p class="small" style="text-align:center;margin-top:10px">'+esc(tr(UI.hintSetup))+'</p>';
   } else {
     html += '<button class="hintbtn" id="hint">'+esc(tr(UI.hint(left)))+'</button>';
   }
+  html += '</div><div class="choices">';
+  sc.choices.forEach((c,i)=>{
+    if (!isVisible(s.scene,i,c,s)) return;
+    const hint = c.need ? c.need(s) : null;
+    html += '<button data-i="'+i+'"'+(hint?' disabled':'')+'>'+esc(tr(c.t))+(hint?'<span class="need">'+esc(tr(hint))+'</span>':'')+'</button>';
+  });
   html += '</div></div>';
   app.innerHTML = html;
   bindTop();
@@ -1668,25 +1698,62 @@ function render(){
     b.onclick = ()=> choose(s.scene, parseInt(b.getAttribute("data-i"),10));
   });
   const hb = document.getElementById("hint"); if (hb) hb.onclick = useHint;
-  const buy = document.getElementById("buyhints");
-  if (buy) buy.onclick = (ev)=>{ ev.preventDefault(); startHintPurchase(); };
+  app.querySelectorAll(".hint-plan").forEach(b=>{
+    b.onclick = ()=>startHintPurchase(Number(b.dataset.amount), Number(b.dataset.hints));
+  });
   setMood(s);
   animateBars();
   s.prev = {health:s.health, food:s.food, nerve:s.nerve}; s.fresh = false; s.shake = false;
 }
 
-function share(){
+function getResultShareText(){
   const e = ENDINGS[S.ending];
   const stars = e.stars ? "★".repeat(e.stars) : "☆";
-  const text = (lang==="hi"
+  return (lang==="hi"
     ? '"'+tr(e.title)+'" '+stars+' — घोस्ट टाउन: सुनपुर में मेरा अंत। क्या तुम बेहतर अंत ढूँढ सकते हो?'
-    : 'I got "'+tr(e.title)+'" '+stars+' in Ghost Town: Sunpur. Can you find the best ending?')
-    + (location.protocol.startsWith("http") ? " "+location.href : "");
+    : 'I got "'+tr(e.title)+'" '+stars+' in Ghost Town: Sunpur. Can you find the best ending?');
+}
+function getShareUrl(){
+  return location.protocol.startsWith("http") ? location.href : "";
+}
+function shareFacebook(){
+  const text=getResultShareText();
+  const url=getShareUrl();
+  const shareUrl='https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(url)+'&quote='+encodeURIComponent(text);
+  window.open(shareUrl,'_blank','noopener,noreferrer');
+}
+function shareWhatsApp(){
+  const text=getResultShareText();
+  const url=getShareUrl();
+  const payload=text+(url?' '+url:'');
+  window.open('https://wa.me/?text='+encodeURIComponent(payload),'_blank','noopener,noreferrer');
+}
+
+function share(){
+  const text = getResultShareText() + (getShareUrl() ? " "+getShareUrl() : "");
   const note = document.getElementById("shared");
   if (navigator.share){ navigator.share({text}).catch(()=>{}); return; }
   if (navigator.clipboard){ navigator.clipboard.writeText(text).then(()=>{ note.textContent = tr(UI.copied); }).catch(()=>{ note.textContent = text; }); }
   else note.textContent = text;
 }
+
+window.addEventListener("pageshow", async ()=>{
+  if(!S || !CONFIG.SUPABASE_READY) return;
+  try{
+    await ensureSupabaseSession();
+    await syncHintState();
+    const pending=fetchKey("sunpur_pending_order");
+    if(pending){
+      const os=await hintApi("order_status",pending);
+      if(os && os.order_id===pending && os.status==="PAID"){
+        S.paymentCode=os.payment_code||null;
+        S.paymentNoticeHints=Number(os.hints_granted||0)||null;
+        store("sunpur_pending_order","");
+      }
+    }
+    render();
+  }catch(_e){}
+});
 
 const savedLang = fetchKey("sunpur_lang");
 if (savedLang==="hi" || savedLang==="en") lang = savedLang;
@@ -1707,15 +1774,29 @@ if (document.addEventListener) document.addEventListener("visibilitychange", ()=
     if (soundOn && audioCtx) startAmbient();
   }
 });
-async function bootSunpur(){
-  if(CONFIG.SUPABASE_READY){
-    try{
-      const user = await initSupabasePlayer();
-      if(user?.id){ store("sunpur_player_id", user.id); }
-    }catch(e){
-      console.warn("Supabase auth unavailable:", e);
-    }
-  }
+function showStartScreen(){
+  const app=document.getElementById("app");
+  if(!app) return;
+  app.innerHTML = '<div class="start-screen">'+
+    '<div class="start-card cinematic-foreground enter">'+
+      '<h1>'+esc(tr(UI.title))+'</h1>'+
+      '<div class="start-sub">'+esc(tr(UI.startSub))+'</div>'+ 
+      '<div class="start-lang">'+
+        '<button class="lang-btn '+(lang==="en"?"active":"")+'" id="start-lang-en">English</button>'+
+        '<button class="lang-btn '+(lang==="hi"?"active":"")+'" id="start-lang-hi">हिंदी</button>'+ 
+      '</div>'+ 
+      '<button class="play-button" id="start-play"><span class="play-icon">▶</span>'+esc(tr(UI.play))+'</button>'+ 
+    '</div>'+
+  '</div>';
+  const en=document.getElementById("start-lang-en");
+  const hi=document.getElementById("start-lang-hi");
+  const play=document.getElementById("start-play");
+  if(en) en.onclick=()=>{lang="en";store("sunpur_lang",lang);showStartScreen();};
+  if(hi) hi.onclick=()=>{lang="hi";store("sunpur_lang",lang);showStartScreen();};
+  if(play) play.onclick=()=>launchGame();
+}
+
+async function launchGame(){
   newGame(1);
   if(CONFIG.SUPABASE_READY){
     await syncHintState();
@@ -1726,6 +1807,7 @@ async function bootSunpur(){
         if(os && os.order_id===pending && os.status==="PAID"){
           S.paymentCode=os.payment_code||null;
           store("sunpur_pending_order","");
+          S.paymentNoticeHints = Number(os.hints_granted||0) || null;
         }else{
           S.pendingOrderId=pending;
         }
@@ -1733,6 +1815,18 @@ async function bootSunpur(){
     }
     render();
   }
+}
+
+async function bootSunpur(){
+  if(CONFIG.SUPABASE_READY){
+    try{
+      const user = await initSupabasePlayer();
+      if(user?.id){ store("sunpur_player_id", user.id); }
+    }catch(e){
+      console.warn("Supabase auth unavailable:", e);
+    }
+  }
+  showStartScreen();
 }
 bootSunpur();
 resizeFx();
