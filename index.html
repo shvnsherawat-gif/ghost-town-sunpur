@@ -66,8 +66,10 @@ button.hintbtn{background:transparent;border-style:dashed;color:var(--nerve);tex
 .hint-plan.best{border-color:var(--accent)}
 .social-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .social-row button{flex:1 1 150px;text-align:center;font-family:system-ui,"Nirmala UI",sans-serif;font-weight:800}
-.social-facebook{border-color:#6f8cc9}
-.social-whatsapp{border-color:#58b878}
+.social-facebook{border-color:#6f8cc9}.social-whatsapp{border-color:#58b878}
+.social-icon{width:20px;height:20px;display:inline-block;vertical-align:-4px;margin-right:8px}
+.social-row button{display:inline-flex;align-items:center;justify-content:center;gap:2px}
+
 @media(max-width:520px){
   .hint-plan-grid{grid-template-columns:1fr}
   .start-card h1{font-size:28px}
@@ -1656,7 +1658,7 @@ function render(){
       (s.msg.length ? '<p class="msg">'+esc(s.msg.map(tr).join(" "))+'</p>' : '')+
       '<p class="story">'+esc(tr(e.text))+'</p>'+
       '<p class="small">'+esc(tr(UI.found(found,total)))+'</p>'+
-      '<div class="row"><button class="primary" id="again">'+esc(tr(UI.again))+'</button><button class="primary" id="share">'+esc(tr(UI.share))+'</button>'+      (ch2ok ? '<button class="primary" id="ch2">'+esc(tr(UI.next))+'</button>' : '')+      (s.chapter===2 ? '<button class="primary" id="ch1">'+esc(tr(UI.ch1))+'</button>' : '')+      '</div>'+      '<div class="social-row">'+        '<button class="social-facebook" id="share-facebook">📘 '+esc(tr(UI.facebook))+'</button>'+        '<button class="social-whatsapp" id="share-whatsapp">🟢 '+esc(tr(UI.whatsapp))+'</button>'+      '</div>'+      '<p class="small" id="shared"></p></div>';
+      '<div class="row"><button class="primary" id="again">'+esc(tr(UI.again))+'</button><button class="primary" id="share">'+esc(tr(UI.share))+'</button>'+      (ch2ok ? '<button class="primary" id="ch2">'+esc(tr(UI.next))+'</button>' : '')+      (canNext ? '<button class="primary" id="nextChapter">'+esc(nextLabel)+'</button>' : '')+      (s.chapter===2 ? '<button class="primary" id="ch1">'+esc(tr(UI.ch1))+'</button>' : '')+      '</div>'+      '<div class="social-row">'+        '<button class="social-facebook" id="share-facebook"><svg class="social-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14 8h3V4.5c-.52-.08-2.3-.2-4.3-.2-4.25 0-7.16 2.6-7.16 7.36V15H2v4h3.54v5h4.35v-5h3.62l.58-4H9.89v-2.91C9.89 10.93 10.37 8 14 8Z"/></svg><span>'+esc(tr(UI.facebook))+'</span></button>'+        '<button class="social-whatsapp" id="share-whatsapp"><svg class="social-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.5 3.5A11.93 11.93 0 0 0 12.03 0C5.43 0 .06 5.36.06 11.97c0 2.11.55 4.16 1.59 5.97L0 24l6.2-1.62a11.94 11.94 0 0 0 5.82 1.5h.01C18.64 23.88 24 18.53 24 11.93c0-3.19-1.24-6.19-3.5-8.43ZM12.03 21.9h-.01a9.9 9.9 0 0 1-5.05-1.38l-.36-.21-3.68.96.98-3.59-.23-.37a9.91 9.91 0 0 1-1.52-5.32c0-5.51 4.48-9.99 10-9.99 2.67 0 5.18 1.04 7.06 2.92a9.94 9.94 0 0 1 2.93 7.08c0 5.51-4.49 9.9-10.12 9.9Zm5.48-7.46c-.3-.15-1.77-.87-2.04-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.47-.89-.79-1.49-1.77-1.67-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.03 1.01-1.03 2.47s1.06 2.87 1.21 3.07c.15.2 2.08 3.18 5.04 4.46.7.3 1.25.49 1.68.63.71.23 1.36.2 1.87.12.57-.08 1.77-.72 2.02-1.42.25-.7.25-1.3.17-1.42-.07-.12-.27-.2-.57-.35Z"/></svg><span>'+esc(tr(UI.whatsapp))+'</span></button>'+      '</div>'+      '<p class="small" id="shared"></p></div>';
     bindTop();
     document.getElementById("again").onclick = ()=>startChapterAndSync(s.chapter);
     document.getElementById("share").onclick = share;
