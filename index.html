@@ -7,16 +7,19 @@
 <style>
 :root{--bg:#0d0f14;--card:#171a22;--ink:#e8e6df;--mute:#8b8f9a;--accent:#e0a84a;--hp:#d9534f;--food:#e0a84a;--nerve:#6aa7e0;--line:#262a35}
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Georgia,"Noto Serif Devanagari","Nirmala UI","Times New Roman",serif;line-height:1.6}
-.wrap{max-width:560px;margin:0 auto;padding:16px 16px 48px}
+html,body{margin:0;color:var(--ink);font-family:Georgia,"Noto Serif Devanagari","Nirmala UI","Times New Roman",serif;line-height:1.6}
+body{background-color:#0d0f14;min-height:100vh;transition:background-color 1.6s ease}
+.wrap{max-width:620px;margin:0 auto;padding:16px 16px 48px;position:relative;z-index:2}
 .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
 h1{font-size:20px;letter-spacing:.06em;margin:4px 0 2px;color:var(--accent)}
 .sub{color:var(--mute);font-size:13px;margin-bottom:12px;font-family:system-ui,"Nirmala UI",sans-serif}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px;font-family:system-ui,"Nirmala UI",sans-serif;font-size:12px;color:var(--mute)}
+.top,.stats,.meta{position:relative;z-index:2}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px;font-family:system-ui,"Nirmala UI",sans-serif;font-size:12px;color:var(--mute)}
 .bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:4px}
-.fill{height:100%;transition:width .3s}
+.fill{height:100%;transition:width .8s cubic-bezier(.2,.8,.2,1)}
 .meta{display:flex;justify-content:space-between;gap:8px;font-family:system-ui,"Nirmala UI",sans-serif;font-size:12px;color:var(--mute);margin-bottom:10px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card.cinematic-foreground{animation:foregroundEnter .65s cubic-bezier(.2,.8,.2,1)}
+@keyframes foregroundEnter{from{opacity:.2;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
+.card{background:rgba(12,15,22,.84);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:18px;box-shadow:0 18px 55px rgba(0,0,0,.32)}
 h2{margin:0 0 8px;font-size:19px}
 p{margin:0 0 10px}
 .msg{color:var(--accent);font-style:italic}
@@ -29,26 +32,398 @@ button .need{display:block;font-family:system-ui,"Nirmala UI",sans-serif;font-si
 button.primary{background:var(--accent);color:#1a1405;border-color:var(--accent);text-align:center;font-weight:bold}
 button.mini{width:auto;min-height:34px;padding:6px 12px;font-size:13px;text-align:center;font-family:system-ui,"Nirmala UI",sans-serif}
 button.hintbtn{background:transparent;border-style:dashed;color:var(--nerve);text-align:center;font-size:14px;margin-top:4px}
-.stars{color:var(--accent);font-size:22px;letter-spacing:2px;margin-bottom:6px}
+.stars{color:var(--accent);font-size:24px;letter-spacing:3px;margin-bottom:6px}
 .small{font-family:system-ui,"Nirmala UI",sans-serif;font-size:12px;color:var(--mute)}
 .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .row button{text-align:center;flex:1 1 140px}
+
+/* ---------- ANIMATION LAYERS ---------- */
+body[data-mood="dusk"]{background-color:#1a1420}
+body[data-mood="evening"]{background-color:#12141c}
+body[data-mood="night"]{background-color:#0b0d13}
+body[data-mood="midnight"]{background-color:#150a0e}
+body[data-mood="dawn"]{background-color:#231b17}
+body[data-mood="morning"]{background-color:#27231c}
+body[data-mood="day"]{background-color:#2c2820}
+body[data-mood="good"]{background-color:#2e2514}
+body[data-mood="bad"]{background-color:#080304}
+body{--fog:.7}
+body[data-mood="dusk"]{--fog:.5} body[data-mood="night"]{--fog:1} body[data-mood="midnight"]{--fog:1.6}
+body[data-mood="dawn"]{--fog:.8} body[data-mood="morning"]{--fog:.5} body[data-mood="day"]{--fog:.3}
+body[data-mood="good"]{--fog:.25} body[data-mood="bad"]{--fog:1.6}
+.fog,#fx,.glow{position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.fog{opacity:calc(var(--fog) * .55);transition:opacity 1.6s ease;overflow:hidden}
+.fog::before,.fog::after{content:"";position:absolute;left:-40%;width:180%;height:60%;
+  background:radial-gradient(ellipse at 30% 50%,rgba(210,220,235,.16),transparent 60%),radial-gradient(ellipse at 75% 40%,rgba(210,220,235,.12),transparent 55%);
+  will-change:transform;animation:drift 38s ease-in-out infinite alternate}
+.fog::before{top:8%}
+.fog::after{bottom:0;animation-duration:55s;animation-direction:alternate-reverse;opacity:.8}
+.glow{background:radial-gradient(ellipse at 50% 0%,rgba(255,170,70,.30),transparent 62%);opacity:0;transition:opacity 1.2s ease}
+body.lit .glow{opacity:1;animation:flicker 3.2s infinite}
+@keyframes drift{from{transform:translateX(-8%)}to{transform:translateX(8%)}}
+@keyframes flicker{0%,100%{opacity:.9}8%{opacity:.6}14%{opacity:.95}30%{opacity:.75}47%{opacity:1}63%{opacity:.7}80%{opacity:.95}}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+@keyframes pop{0%{opacity:0;transform:scale(.3) rotate(-25deg)}70%{opacity:1;transform:scale(1.35) rotate(6deg)}100%{opacity:1;transform:none}}
+@keyframes shake{0%,100%{transform:none}15%{transform:translateX(-6px)}35%{transform:translateX(5px)}55%{transform:translateX(-4px)}75%{transform:translateX(3px)}}
+@keyframes hitflash{0%{filter:brightness(2.4)}100%{filter:none}}
+@keyframes pulseGlow{0%,100%{box-shadow:0 0 0 rgba(217,83,79,0)}50%{box-shadow:0 0 22px rgba(217,83,79,.45)}}
+@keyframes bell{0%,100%{transform:rotate(0)}20%{transform:rotate(14deg)}40%{transform:rotate(-12deg)}60%{transform:rotate(8deg)}80%{transform:rotate(-5deg)}}
+.enter{animation:rise .5s ease-out both}
+.enter .msg{animation:fadein 1s .15s both}
+.enter .choices button{animation:rise .45s ease-out both}
+.enter .choices button:nth-child(1){animation-delay:.10s}
+.enter .choices button:nth-child(2){animation-delay:.18s}
+.enter .choices button:nth-child(3){animation-delay:.26s}
+.enter .choices button:nth-child(4){animation-delay:.34s}
+.enter .choices button:nth-child(5){animation-delay:.42s}
+.enter .choices button:nth-child(6){animation-delay:.50s}
+.shake{animation:shake .4s}
+.hint{animation:fadein .6s}
+.stat.hit .fill{background:#ff6b66 !important;animation:hitflash .7s}
+.stat.gain .fill{animation:hitflash .7s}
+.card.mid{animation:pulseGlow 3s ease-in-out infinite}
+.bellicon{display:inline-block;transform-origin:50% 0;animation:bell 1.6s ease-in-out infinite}
+.end .st{opacity:0;display:inline-block;animation:pop .55s forwards}
+.end h2{animation:fadein 1s .9s both}
+.end .story{animation:fadein 1.2s 1.3s both}
+.end .small,.end .row{animation:fadein 1s 2s both}
+button.mini+button.mini{margin-left:6px}
+.noanim *,.noanim *::before,.noanim *::after{animation:none !important;transition:none !important}
+.noanim .fog,.noanim #fx,.noanim .glow{display:none}
+.noanim .end .st{opacity:1}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none !important;transition:none !important}
+  .fog,#fx{display:none}
+  .end .st{opacity:1}
+}
+
+/* ===== Full-screen animated story background ===== */
+#sceneVisual{
+  position:fixed; inset:0; width:100%; height:100vh; overflow:hidden;
+  z-index:0; pointer-events:none; background:#080a10;
+}
+#sceneVisual .scene-sky{
+  position:absolute; inset:0;
+  background:linear-gradient(#11152b 0%,#33233b 58%,#0b1017 100%);
+  transition:background 1.2s ease;
+}
+#sceneVisual .scene-stars{
+  position:absolute; inset:0; opacity:.65;
+  background-image:radial-gradient(circle,rgba(255,245,210,.9) 0 1px,transparent 1.8px);
+  background-size:83px 71px; animation:starDrift 22s linear infinite;
+}
+#sceneVisual .moon{
+  position:absolute; width:92px; height:92px; right:12%; top:11%;
+  border-radius:50%; background:#fff0bd;
+  box-shadow:0 0 45px rgba(255,236,170,.55);
+  transition:opacity .8s,transform .8s,background .8s;
+}
+#sceneVisual .scene-art{position:absolute;inset:0;transition:opacity .5s,transform .8s;}
+#sceneVisual .scene-fog{
+  position:absolute;left:-15%;right:-15%;bottom:8%;height:31%;
+  background:
+    radial-gradient(ellipse at 20% 50%,rgba(225,230,240,.18),transparent 57%),
+    radial-gradient(ellipse at 70% 42%,rgba(225,230,240,.14),transparent 54%);
+  filter:blur(12px);animation:sceneFogMove 15s ease-in-out infinite alternate;
+  opacity:.75;transition:opacity 1s;
+}
+#sceneVisual .scene-vignette{
+  position:absolute;inset:0;
+  background:radial-gradient(ellipse at center,transparent 30%,rgba(0,0,0,.18) 68%,rgba(0,0,0,.72) 100%);
+}
+#sceneVisual .scene-caption{
+  position:absolute;left:24px;bottom:22px;font:600 12px system-ui,sans-serif;
+  letter-spacing:.13em;text-transform:uppercase;color:rgba(255,255,255,.52);
+  text-shadow:0 2px 8px #000;
+}
+
+#sceneVisual .art-water{
+  position:absolute;left:50%;bottom:24%;width:300px;height:112px;transform:translateX(-50%);
+  border-radius:50%;
+  background:
+    radial-gradient(ellipse at 50% 42%,rgba(120,155,175,.38),transparent 38%),
+    repeating-radial-gradient(ellipse at center,rgba(105,150,175,.28) 0 3px,transparent 4px 12px),
+    linear-gradient(#101c27,#071018);
+  border:10px solid #30323a;
+  box-shadow:0 15px 50px rgba(0,0,0,.7),inset 0 0 28px #02070a;
+  animation:waterBreathe 3.8s ease-in-out infinite;
+}
+#sceneVisual .art-water:before,#sceneVisual .art-water:after{
+  content:"";position:absolute;left:8%;right:8%;height:2px;
+  background:rgba(185,215,225,.38);filter:blur(1px);
+  animation:waterRipple 2.7s ease-in-out infinite;
+}
+#sceneVisual .art-water:before{top:35%}
+#sceneVisual .art-water:after{top:62%;animation-delay:.9s}
+#sceneVisual .art-glint{
+  position:absolute;left:50%;bottom:30%;width:8px;height:8px;border-radius:50%;
+  background:#fff8bf;
+  box-shadow:0 0 7px 3px #ffe99a,0 0 22px 8px rgba(255,224,120,.55);
+  animation:glintFlash 1.15s ease-in-out infinite;z-index:3;
+}
+#sceneVisual .art-glint:before,#sceneVisual .art-glint:after{
+  content:"";position:absolute;left:50%;top:50%;width:30px;height:2px;
+  background:rgba(255,245,190,.75);transform:translate(-50%,-50%);border-radius:2px;
+}
+#sceneVisual .art-glint:after{transform:translate(-50%,-50%) rotate(90deg)}
+#sceneVisual .art-ripple{
+  position:absolute;left:50%;bottom:30%;width:30px;height:12px;
+  border:1px solid rgba(180,220,230,.55);border-radius:50%;
+  transform:translate(-50%,50%);animation:glintRipple 1.8s ease-out infinite;
+}
+#sceneVisual .art-gate-light{
+  position:absolute;left:50%;bottom:23%;width:340px;height:205px;
+  transform:translateX(-50%);
+  background:radial-gradient(ellipse at 50% 75%,rgba(190,205,220,.18),transparent 55%);
+  animation:gateLight 4s ease-in-out infinite;
+}
+@keyframes waterBreathe{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.018,.97)}}
+@keyframes waterRipple{0%,100%{transform:scaleX(.55);opacity:.2}50%{transform:scaleX(1);opacity:.6}}
+@keyframes glintFlash{0%,100%{opacity:.25;transform:scale(.65)}45%{opacity:1;transform:scale(1.35)}60%{opacity:.75;transform:scale(.9)}}
+@keyframes glintRipple{0%{transform:translate(-50%,50%) scale(.3);opacity:.8}100%{transform:translate(-50%,50%) scale(4);opacity:0}}
+@keyframes gateLight{0%,100%{opacity:.45}50%{opacity:1}}
+#sceneVisual .art-ground{
+  position:absolute;left:-5%;right:-5%;bottom:-5%;height:34%;
+  background:linear-gradient(transparent,#080b10 35%,#06080c 100%);
+}
+#sceneVisual .art-house{
+  position:absolute;left:12%;bottom:25%;width:230px;height:145px;background:#101116;
+  box-shadow:0 0 0 3px rgba(0,0,0,.35),0 20px 55px rgba(0,0,0,.35);
+}
+#sceneVisual .art-house:before{
+  content:"";position:absolute;left:-28px;top:-85px;
+  border-left:143px solid transparent;border-right:143px solid transparent;border-bottom:90px solid #0b0d12;
+}
+#sceneVisual .art-window{
+  position:absolute;left:91px;top:50px;width:48px;height:58px;background:#c78e3d;
+  box-shadow:0 0 35px rgba(225,164,69,.8);animation:sceneFlicker 2.4s infinite;
+}
+#sceneVisual .art-door{
+  position:absolute;right:25px;bottom:0;width:48px;height:92px;background:#090a0d;border:2px solid #272832;
+}
+#sceneVisual .art-well{
+  position:absolute;right:18%;bottom:25%;width:145px;height:72px;border-radius:50%;
+  border:18px solid #282a31;background:#050609;box-shadow:0 10px 30px rgba(0,0,0,.45);
+}
+#sceneVisual .art-well:before{
+  content:"";position:absolute;left:-4px;top:-72px;width:118px;height:54px;
+  border-top:8px solid #282a31;border-left:7px solid #282a31;border-right:7px solid #282a31;
+  transform:translateX(0);
+}
+#sceneVisual .art-tree{
+  position:absolute;right:5%;bottom:20%;width:32px;height:230px;background:#0b0c10;border-radius:10px;
+}
+#sceneVisual .art-tree:before{
+  content:"";position:absolute;width:190px;height:170px;left:-78px;top:-100px;border-radius:50%;
+  background:#0b0d11;box-shadow:65px 18px 0 #0b0d11,-40px 42px 0 #0b0d11;
+}
+#sceneVisual .art-gate{
+  position:absolute;left:50%;bottom:23%;width:300px;height:190px;transform:translateX(-50%);
+  border-left:16px solid #30313a;border-right:16px solid #30313a;
+  border-top:14px solid #30313a;box-shadow:0 15px 45px rgba(0,0,0,.55);
+}
+#sceneVisual .art-gate:before{
+  content:"";position:absolute;inset:8px 0 0;
+  background:repeating-linear-gradient(90deg,transparent 0 20px,#20222a 21px 28px);
+  border-bottom:13px solid #292b33;
+}
+#sceneVisual .art-chain{
+  position:absolute;left:50%;top:50%;width:28px;height:60px;transform:translate(-50%,-50%);
+  border:5px solid #7a6d5d;border-radius:50%;box-shadow:0 0 10px rgba(255,255,255,.08);
+}
+#sceneVisual .art-temple{
+  position:absolute;left:50%;bottom:24%;width:220px;height:145px;transform:translateX(-50%);
+  background:#17151a;box-shadow:0 16px 40px rgba(0,0,0,.5);
+}
+#sceneVisual .art-temple:before{
+  content:"";position:absolute;left:-38px;top:-78px;
+  border-left:148px solid transparent;border-right:148px solid transparent;border-bottom:82px solid #100f14;
+}
+#sceneVisual .art-bell{
+  position:absolute;left:50%;top:15px;width:54px;height:58px;transform:translateX(-50%);
+  border-radius:45% 45% 30% 30%;background:#8b713f;
+  box-shadow:0 0 28px rgba(217,176,82,.3);animation:bell 1.6s ease-in-out infinite;
+}
+#sceneVisual .art-figure{
+  position:absolute;left:50%;bottom:23%;width:38px;height:115px;transform:translateX(-50%);
+  background:#08090d;border-radius:20px 20px 6px 6px;box-shadow:0 0 35px rgba(0,0,0,.9);
+}
+#sceneVisual .art-figure:before{
+  content:"";position:absolute;left:3px;top:-43px;width:32px;height:32px;border-radius:50%;background:#090a0d;
+}
+#sceneVisual .art-lantern{
+  position:absolute;left:50%;bottom:31%;margin-left:35px;width:22px;height:30px;
+  background:#d59b43;box-shadow:0 0 28px #d59b43;border-radius:5px;animation:sceneFlicker 1.6s infinite;
+}
+#sceneVisual.scene-pulse{animation:sceneBackgroundPulse .8s ease}
+@keyframes starDrift{from{transform:translateY(0)}to{transform:translateY(18px)}}
+@keyframes sceneFogMove{from{transform:translateX(-4%)}to{transform:translateX(8%)}}
+@keyframes sceneFlicker{0%,100%{opacity:.9}48%{opacity:.55}52%{opacity:1}}
+@keyframes sceneBackgroundPulse{0%{filter:brightness(1)}45%{filter:brightness(1.22)}100%{filter:brightness(1)}}
+@media(max-width:600px){
+  #sceneVisual .art-house{transform:scale(.72);transform-origin:left bottom}
+  #sceneVisual .art-gate{transform:translateX(-50%) scale(.72);transform-origin:center bottom}
+  #sceneVisual .art-temple{transform:translateX(-50%) scale(.72);transform-origin:center bottom}
+  #sceneVisual .art-well{transform:scale(.72);transform-origin:right bottom}
+  #sceneVisual .art-tree{transform:scale(.75);transform-origin:right bottom}
+}
+
+
+/* ===== CINEMATIC SCENE SYSTEM ===== */
+#sceneVisual::after{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:20;
+  background:linear-gradient(180deg,rgba(0,0,0,.32),transparent 18%,transparent 78%,rgba(0,0,0,.48));
+  mix-blend-mode:multiply;
+}
+#sceneVisual .cinematic-beam{
+  position:absolute;left:-15%;top:-20%;width:70%;height:140%;
+  background:linear-gradient(105deg,transparent 0 42%,rgba(255,222,155,.09) 50%,transparent 62%);
+  transform:rotate(9deg);filter:blur(12px);opacity:.7;
+  animation:beamDrift 13s ease-in-out infinite alternate;z-index:7;
+}
+#sceneVisual .cinematic-dust{
+  position:absolute;inset:0;z-index:8;opacity:.55;
+  background-image:radial-gradient(circle,rgba(240,224,190,.55) 0 1px,transparent 1.5px);
+  background-size:117px 93px;animation:dustFloat 18s linear infinite;
+}
+#sceneVisual .cinematic-shadow{
+  position:absolute;inset:0;z-index:9;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 55%,transparent 20%,rgba(0,0,0,.08) 55%,rgba(0,0,0,.62) 100%);
+}
+#sceneVisual .scene-mist{
+  position:absolute;left:-20%;right:-20%;bottom:7%;height:42%;z-index:10;
+  background:
+    radial-gradient(ellipse at 25% 55%,rgba(220,230,240,.12),transparent 48%),
+    radial-gradient(ellipse at 65% 42%,rgba(220,230,240,.09),transparent 46%),
+    radial-gradient(ellipse at 90% 68%,rgba(220,230,240,.1),transparent 44%);
+  filter:blur(15px);animation:mistCrawl 17s ease-in-out infinite alternate;
+}
+#sceneVisual .cinematic-title{
+  position:absolute;left:50%;top:11%;transform:translateX(-50%);
+  z-index:21;text-align:center;white-space:nowrap;
+  font:700 clamp(13px,2vw,20px)/1.2 system-ui,sans-serif;
+  letter-spacing:.28em;text-transform:uppercase;color:rgba(255,244,215,.58);
+  text-shadow:0 2px 14px #000;opacity:.85;
+}
+#sceneVisual .cinematic-letterbox{
+  position:absolute;left:0;right:0;height:6.5%;background:#000;z-index:25;
+}
+#sceneVisual .cinematic-letterbox.top{top:0}
+#sceneVisual .cinematic-letterbox.bottom{bottom:0}
+#sceneVisual .scene-rain{
+  position:absolute;inset:-20%;z-index:11;opacity:0;
+  background:repeating-linear-gradient(102deg,transparent 0 12px,rgba(190,210,225,.18) 13px,transparent 14px 28px);
+  transform:rotate(8deg);animation:rainFall .8s linear infinite;
+}
+#sceneVisual .scene-firefly{
+  position:absolute;width:4px;height:4px;border-radius:50%;z-index:13;
+  background:#ffe8a1;box-shadow:0 0 10px 3px rgba(255,224,130,.65);
+  animation:firefly 3.8s ease-in-out infinite;
+}
+#sceneVisual .scene-firefly.f1{left:28%;bottom:35%;animation-delay:-.8s}
+#sceneVisual .scene-firefly.f2{left:63%;bottom:43%;animation-delay:-2.2s}
+#sceneVisual .scene-firefly.f3{left:78%;bottom:29%;animation-delay:-1.4s}
+#sceneVisual.scene-shock .cinematic-shadow{animation:shockFlash .55s ease}
+#sceneVisual.scene-shock .scene-art{animation:shockZoom .75s cubic-bezier(.2,.8,.2,1)}
+@keyframes beamDrift{from{transform:translateX(-3%) rotate(9deg)}to{transform:translateX(30%) rotate(9deg)}}
+@keyframes dustFloat{from{transform:translate3d(0,0,0)}to{transform:translate3d(30px,-18px,0)}}
+@keyframes mistCrawl{from{transform:translateX(-4%)}to{transform:translateX(9%)}}
+@keyframes rainFall{from{transform:translate(-2%,-2%) rotate(8deg)}to{transform:translate(5%,8%) rotate(8deg)}}
+@keyframes firefly{0%,100%{opacity:.08;transform:translate(0,8px) scale(.5)}40%{opacity:1;transform:translate(22px,-18px) scale(1.2)}75%{opacity:.35;transform:translate(-10px,-36px) scale(.8)}}
+@keyframes shockFlash{0%{opacity:1;box-shadow:inset 0 0 0 rgba(255,255,255,0)}18%{opacity:.25;box-shadow:inset 0 0 80px rgba(255,255,255,.35)}100%{opacity:1}}
+@keyframes shockZoom{0%{transform:scale(1.04)}100%{transform:scale(1)}}
+
+
+/* ===== CINEMATIC V3: dramatic camera + atmosphere ===== */
+#sceneVisual .camera-layer{
+  position:absolute;inset:-5%;z-index:6;transform-origin:50% 55%;
+  animation:cameraDrift 12s ease-in-out infinite alternate;
+}
+#sceneVisual .light-flicker{
+  position:absolute;inset:0;z-index:12;pointer-events:none;
+  background:radial-gradient(circle at 50% 48%,rgba(255,207,125,.12),transparent 28%);
+  mix-blend-mode:screen;animation:lightFlicker 3.2s steps(8,end) infinite;
+}
+#sceneVisual .fog-ribbon{
+  position:absolute;left:-30%;right:-30%;bottom:16%;height:24%;
+  z-index:14;filter:blur(18px);opacity:.45;
+  background:linear-gradient(90deg,transparent,rgba(215,225,235,.13),transparent);
+  transform:skewY(-2deg);animation:fogRibbon 11s ease-in-out infinite alternate;
+}
+#sceneVisual .dramatic-flash{
+  position:absolute;inset:0;z-index:30;background:#fff;opacity:0;pointer-events:none;
+}
+#sceneVisual .scene-breath{
+  position:absolute;left:50%;bottom:20%;width:420px;height:230px;z-index:5;
+  transform:translateX(-50%);border-radius:50%;
+  background:radial-gradient(ellipse,rgba(255,255,255,.07),transparent 65%);
+  animation:breath 4.5s ease-in-out infinite;
+}
+#sceneVisual .shadow-figure{
+  position:absolute;z-index:16;left:50%;bottom:21%;width:34px;height:115px;
+  transform:translateX(-50%);opacity:0;
+  background:#030407;border-radius:18px 18px 6px 6px;
+  box-shadow:0 0 35px 8px rgba(0,0,0,.55);
+}
+#sceneVisual .shadow-figure::before{
+  content:"";position:absolute;left:2px;top:-39px;width:30px;height:30px;
+  border-radius:50%;background:#020305;
+}
+#sceneVisual .shadow-figure::after{
+  content:"";position:absolute;left:7px;top:34px;width:20px;height:4px;
+  background:rgba(170,185,200,.16);filter:blur(2px);
+}
+#sceneVisual[data-atmosphere="heartbeat"] .shadow-figure{
+  opacity:.92;animation:figureApproach 7s ease-in-out infinite alternate;
+}
+#sceneVisual[data-atmosphere="whisper"] .shadow-figure{
+  opacity:.18;animation:figureSway 5s ease-in-out infinite;
+}
+#sceneVisual[data-atmosphere="bells"] .art-bell{animation:bellDramatic 2.2s ease-in-out infinite}
+#sceneVisual[data-atmosphere="wind"] .art-tree{animation:treeSway 4.5s ease-in-out infinite}
+#sceneVisual[data-atmosphere="ember"] .art-lantern{animation:lanternDramatic 1.1s ease-in-out infinite}
+#sceneVisual[data-atmosphere="water"] .art-glint{animation:glintCinematic .9s ease-in-out infinite}
+#sceneVisual[data-atmosphere="heartbeat"] .scene-breath{animation:breathFast 1.1s ease-in-out infinite}
+@keyframes cameraDrift{
+  0%{transform:scale(1.01) translate3d(-.5%,.2%,0)}
+  50%{transform:scale(1.045) translate3d(.8%,-.4%,0)}
+  100%{transform:scale(1.075) translate3d(-.7%,.6%,0)}
+}
+@keyframes lightFlicker{0%,100%{opacity:.55}12%{opacity:.7}14%{opacity:.25}37%{opacity:.6}39%{opacity:.34}71%{opacity:.8}73%{opacity:.42}}
+@keyframes fogRibbon{from{transform:translateX(-4%) skewY(-2deg)}to{transform:translateX(12%) skewY(-2deg)}}
+@keyframes breath{0%,100%{transform:translateX(-50%) scale(.9);opacity:.25}50%{transform:translateX(-50%) scale(1.08);opacity:.65}}
+@keyframes breathFast{0%,100%{transform:translateX(-50%) scale(.82);opacity:.18}50%{transform:translateX(-50%) scale(1.14);opacity:.72}}
+@keyframes figureApproach{from{transform:translateX(-50%) scale(.72);filter:blur(1.5px)}to{transform:translateX(-50%) scale(1.18);filter:blur(0)}}
+@keyframes figureSway{0%,100%{transform:translateX(-50%) rotate(-2deg)}50%{transform:translateX(-46%) rotate(2deg)}}
+@keyframes bellDramatic{0%,100%{transform:translateX(-50%) rotate(-2deg)}20%{transform:translateX(-50%) rotate(8deg)}40%{transform:translateX(-50%) rotate(-7deg)}60%{transform:translateX(-50%) rotate(4deg)}}
+@keyframes treeSway{0%,100%{transform:rotate(-1deg)}50%{transform:rotate(1.5deg)}}
+@keyframes lanternDramatic{0%,100%{filter:brightness(.8);transform:scale(1)}30%{filter:brightness(1.5);transform:scale(1.08)}33%{filter:brightness(.65)}65%{filter:brightness(1.25)}}
+@keyframes glintCinematic{0%,100%{opacity:.12;transform:scale(.45)}35%{opacity:1;transform:scale(1.5)}55%{opacity:.65;transform:scale(.9)}}
+@keyframes dramaticFlash{0%{opacity:0}10%{opacity:.7}24%{opacity:0}100%{opacity:0}}
+
 </style>
 </head>
 <body>
+<div id="sceneVisual" aria-label="Animated story scene">
+  <div class="scene-sky"></div>
+  <div class="scene-stars"></div>
+  <div class="moon"></div>
+  <div class="scene-art"></div>
+  <div class="scene-fog"></div>
+  <div class="scene-vignette"></div>
+  <div class="scene-caption">Sunpur • Ghost Town</div><div class="scene-soundwave" aria-hidden="true"></div>
+</div>
+
+<div class="fog"></div><div class="glow"></div><canvas id="fx"></canvas>
 <div class="wrap"><div id="app"></div></div>
 
 <script>
 /* ============ CONFIG (edit these) ============ */
 const CONFIG = {
   FREE_HINTS: 3,          // free hints per playthrough
-  UPI_ID: "8383028896@pthdfc",
-  MERCHANT_NAME: "Ghost Town Sunpur",
-  HINT_PACKAGES: [
-    { amount: 10, hints: 3 },
-    { amount: 20, hints: 7 },
-    { amount: 50, hints: 20 }
-  ]
+  UPI_LINK: "",           // e.g. "upi://pay?pa=yourname@upi&pn=YourName&am=10&cu=INR" (leave "" to hide the buy button)
+  EXTRA_HINTS_PER_PURCHASE: 3
 };
 
 /* ============ BILINGUAL HELPERS ============ */
@@ -70,11 +445,8 @@ const UI = {
   copied: L("Copied. Paste it in WhatsApp.","कॉपी हो गया। WhatsApp में चिपकाओ।"),
   hint: n => L("Hint ("+n+" left)","संकेत ("+n+" बचे)"),
   nohints: L("No free hints left this run.","इस बार के मुफ़्त संकेत खत्म हो गए।"),
-  buy: L("Buy more hints","और संकेत खरीदो"),
-  paid: L("I've paid, give me hints","मैंने भुगतान कर दिया, संकेत दो"),
-  packages: L("Choose a hint package","संकेत पैकेज चुनें"),
-  package: (amount, hints) => L("₹"+amount+" for "+hints+" hints","₹"+amount+" में "+hints+" संकेत"),
-  paidFor: (amount, hints) => L("I paid ₹"+amount+" for "+hints+" hints","मैंने ₹"+amount+" में "+hints+" संकेतों का भुगतान किया"),
+  buy: L("Buy more hints","और संकेत खरीदो"), paid: L("I've paid, give me hints","मैंने भुगतान कर दिया, संकेत दो"),
+  soundOn: L("Sound on","आवाज़ चालू"), soundOff: L("Sound off","आवाज़ बंद"),
   growl: L("Your stomach growls.","पेट में भूख कुलबुलाती है।")
 };
 
@@ -283,7 +655,8 @@ let S;
 function newGame(chapter){
   chapter = chapter || 1;
   S = {chapter, scene: chapter===1 ? "courtyard" : "c2_path", health: chapter===1 ? 10 : 8, food:5, nerve:7,
-       turn:0, inv:[], flags:{}, msg:[], hint:null, hintsUsed:0, extraHints:0, hintNote:null, ending:null};
+       turn:0, inv:[], flags:{}, msg:[], hint:null, hintsUsed:0, extraHints:0, hintNote:null, ending:null,
+       prev:null, fresh:true, shake:false};
   render();
 }
 const clamp = v => Math.max(0, Math.min(10, v));
@@ -302,6 +675,7 @@ function choose(sceneId, idx){
   const c = SCENES[sceneId].choices[idx];
   const s = S;
   if (c.need && c.need(s)) return;
+  const prev = {health:s.health, food:s.food, nerve:s.nerve};
   s.msg = c.msg ? [c.msg] : [];
   s.hint = null; s.hintNote = null;
   if (c.once) s.flags["u_"+sceneId+"_"+idx] = true;
@@ -331,9 +705,26 @@ function choose(sceneId, idx){
   if (s.health<=0) next = "dead_hurt";
   else if (s.food<=0) next = "starved";
   else if (s.nerve<=0) next = "broken";
-  if (ENDINGS[next]){ s.ending = next; saveEnding(next); if (ENDINGS[next].good) store("sunpur_ch2","1"); }
-  else s.scene = next;
+  if (ENDINGS[next]){
+    s.ending = next; saveEnding(next); if (ENDINGS[next].good) store("sunpur_ch2","1");
+    playSound(ENDINGS[next].good ? "success" : "bad");
+  } else {
+    s.scene = next;
+    if (s.scene==="well") playSound("water");
+    else if (s.scene==="gate") { playSound("gate"); }
+    else if (s.scene==="hall") playSound("creak");
+    else if (s.scene==="temple" || s.scene==="midnight" || c.set==="rang_early") playSound("bell");
+    else if (c.give) playSound("pickup");
+    else if (s.health<prev.health || s.nerve<prev.nerve) playSound("hurt");
+    else playSound(c.nav ? "move" : "click");
+  }
+  s.prev = prev; s.fresh = true; s.shake = (s.health<prev.health || s.nerve<prev.nerve);
   render();
+  if (window.updateGhostTownScene && s.scene) {
+    const p=document.getElementById("sceneVisual");
+    if(p){ p.classList.remove("scene-shock"); void p.offsetWidth; if(s.scene==="midnight") p.classList.add("scene-shock"); }
+  }
+  if (s.scene) setTimeout(()=>playSceneSound(s.scene), 180);
 }
 
 function useHint(){
@@ -342,24 +733,10 @@ function useHint(){
   if (s.hintsUsed >= allowed){ s.hint = null; s.hintNote = "out"; render(); return; }
   s.hintsUsed++; s.hintNote = null;
   s.hint = HINTS[s.scene](s);
+  playSound("hint");
   render();
 }
-function grantPaidHints(hints, amount){
-  S.extraHints += hints;
-  S.hintNote = null;
-  S.msg = [UI.paidFor(amount, hints)];
-  render();
-}
-
-function payForPackage(pkg){
-  const upi = "upi://pay?pa="+encodeURIComponent(CONFIG.UPI_ID)+
-    "&pn="+encodeURIComponent(CONFIG.MERCHANT_NAME)+
-    "&am="+encodeURIComponent(pkg.amount.toFixed(2))+"&cu=INR";
-  window.location.href = upi;
-  S.pendingPackage = pkg;
-  store("sunpur_pending_package", JSON.stringify(pkg));
-  render();
-}
+function grantPaidHints(){ S.extraHints += CONFIG.EXTRA_HINTS_PER_PURCHASE; S.hintNote = null; render(); }
 
 /* ============ STORAGE ============ */
 function store(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
@@ -369,48 +746,272 @@ function saveEnding(id){ const a=loadEndings(); if(!a.includes(id)){ a.push(id);
 
 /* ============ RENDER ============ */
 function esc(t){ return String(t).replace(/[&<>"]/g, ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch])); }
-function bar(label,val,color){
-  return '<div>'+esc(tr(label))+' '+val+'/10<div class="bar"><div class="fill" style="width:'+(val*10)+'%;background:'+color+'"></div></div></div>';
+const BAR_COLOR = {health:"var(--hp)", food:"var(--food)", nerve:"var(--nerve)"};
+function bar(label,key,val,prevVal){
+  const cls = val<prevVal ? " hit" : val>prevVal ? " gain" : "";
+  return '<div class="stat'+cls+'">'+esc(tr(label))+' '+val+'/10<div class="bar"><div class="fill" data-to="'+(val*10)+'" style="width:'+(prevVal*10)+'%;background:'+BAR_COLOR[key]+'"></div></div></div>';
 }
 function header(){
-  return '<div class="top"><h1>'+esc(tr(UI.title))+'</h1><button class="mini" id="lang">'+(lang==="en"?"हिंदी":"English")+'</button></div>'+
+  return '<div class="top"><h1>'+esc(tr(UI.title))+'</h1><span><button class="mini" id="fxb">FX '+(fxOn?"✓":"✗")+'</button><button class="mini" id="soundb">🔊 '+(soundOn?"✓":"✗")+'</button><button class="mini" id="lang">'+(lang==="en"?"हिंदी":"English")+'</button></span></div>'+
          '<div class="sub">'+esc(tr(UI.sub))+' · '+esc(tr(UI.ch(S.chapter)))+'</div>';
 }
-function bindLang(){
-  document.getElementById("lang").onclick = ()=>{ lang = lang==="en" ? "hi" : "en"; store("sunpur_lang", lang); render(); };
+
+/* ---------- SOUND ENGINE: environmental, scene-aware Web Audio ---------- */
+let soundOn = true;
+let audioCtx = null, masterGain = null, ambientGain = null, ambientTimer = null, ambientScene = "";
+
+function ensureAudio(){
+  if (!soundOn) return false;
+  try{
+    if (!audioCtx){
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return false;
+      audioCtx = new AC();
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = 0.22;
+      masterGain.connect(audioCtx.destination);
+    }
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    return true;
+  }catch(e){ return false; }
 }
+
+function tone(freq,duration,type="sine",volume=.12,when=0){
+  if(!ensureAudio()) return;
+  const now=audioCtx.currentTime+when;
+  const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+  o.type=type; o.frequency.setValueAtTime(freq,now);
+  g.gain.setValueAtTime(.0001,now);
+  g.gain.exponentialRampToValueAtTime(Math.max(.001,volume),now+.015);
+  g.gain.exponentialRampToValueAtTime(.0001,now+duration);
+  o.connect(g); g.connect(masterGain); o.start(now); o.stop(now+duration+.03);
+}
+
+function noise(duration=.18,volume=.06,filterFreq=900){
+  if(!ensureAudio()) return;
+  const len=Math.max(1,Math.floor(audioCtx.sampleRate*duration));
+  const buf=audioCtx.createBuffer(1,len,audioCtx.sampleRate), data=buf.getChannelData(0);
+  for(let i=0;i<len;i++) data[i]=(Math.random()*2-1)*Math.pow(1-i/len,1.7);
+  const src=audioCtx.createBufferSource(), f=audioCtx.createBiquadFilter(), g=audioCtx.createGain();
+  f.type="lowpass"; f.frequency.value=filterFreq; g.gain.value=volume;
+  src.buffer=buf; src.connect(f); f.connect(g); g.connect(masterGain); src.start();
+}
+
+function bellSound(){
+  tone(196,.95,"sine",.11);
+  tone(294,1.05,"sine",.06,.04);
+  tone(392,1.25,"sine",.035,.10);
+}
+
+function waterSound(){
+  noise(.75,.045,1400);
+  tone(165,.8,"sine",.018);
+}
+
+function windSound(){
+  noise(1.2,.025,700);
+  tone(74,1.4,"sine",.018);
+}
+
+function gateSound(){
+  tone(92,.65,"sawtooth",.035);
+  tone(138,.9,"triangle",.028,.15);
+  noise(.5,.025,600);
+}
+
+function creakSound(){
+  tone(110,.65,"sawtooth",.035);
+  tone(155,.48,"triangle",.025,.16);
+}
+
+function heartbeatSound(){
+  tone(72,.10,"sine",.055);
+  tone(58,.11,"sine",.045,.17);
+}
+
+function playSceneSound(scene){
+  if(!soundOn) return;
+  switch(String(scene||"")){
+    case "well":
+      waterSound(); setTimeout(()=>{ if(soundOn) tone(920,.16,"sine",.035); },260);
+      break;
+    case "gate":
+      windSound(); setTimeout(()=>{ if(soundOn) gateSound(); },220);
+      break;
+    case "hall": case "kitchen":
+      creakSound(); setTimeout(()=>{ if(soundOn) windSound(); },420);
+      break;
+    case "upstairs":
+      windSound(); setTimeout(()=>{ if(soundOn) tone(310,.55,"sine",.018); },380);
+      break;
+    case "temple":
+      setTimeout(()=>{ if(soundOn) bellSound(); },120);
+      break;
+    case "midnight":
+      windSound(); setTimeout(()=>{ if(soundOn) heartbeatSound(); },300);
+      setTimeout(()=>{ if(soundOn) heartbeatSound(); },760);
+      break;
+  }
+}
+function playSound(kind){
+  if(!soundOn || !ensureAudio()) return;
+  switch(kind){
+    case "click": tone(520,.055,"sine",.06); break;
+    case "move": tone(240,.09,"triangle",.05); tone(360,.12,"triangle",.04,.045); break;
+    case "item": case "pickup": tone(440,.10,"sine",.07); tone(660,.16,"sine",.06,.09); break;
+    case "success": tone(392,.14,"sine",.07); tone(523.25,.16,"sine",.075,.11); tone(659.25,.24,"sine",.08,.24); break;
+    case "bad": tone(220,.20,"sawtooth",.04); tone(155,.28,"triangle",.05,.12); break;
+    case "hint": tone(660,.10,"sine",.05); tone(880,.18,"sine",.045,.10); break;
+    case "bell": bellSound(); break;
+    case "water": waterSound(); break;
+    case "wind": windSound(); break;
+    case "gate": gateSound(); break;
+    case "creak": creakSound(); break;
+    case "heartbeat": heartbeatSound(); break;
+    case "hurt": noise(.22,.05,850); tone(120,.24,"sawtooth",.045); break;
+  }
+}
+
+function startAmbient(){
+  if(!soundOn || !ensureAudio()) return;
+  stopAmbient();
+  ambientScene = "";
+  ambientTimer=setInterval(()=>{
+    if(!soundOn || document.hidden) return;
+    const s=window.S||{};
+    const scene=String(s.scene||"courtyard");
+    if(scene!==ambientScene){ ambientScene=scene; }
+    if(scene==="well") waterSound();
+    else if(scene==="gate") { windSound(); if(Math.random()<.45) gateSound(); }
+    else if(scene==="midnight") { windSound(); if(Math.random()<.35) heartbeatSound(); }
+    else if(scene==="temple") { windSound(); if(Math.random()<.22) bellSound(); }
+    else if(scene==="hall"||scene==="upstairs"||scene==="kitchen") { windSound(); if(Math.random()<.18) creakSound(); }
+    else windSound();
+  },4200);
+}
+function stopAmbient(){
+  if(ambientTimer){clearInterval(ambientTimer);ambientTimer=null;}
+}
+function toggleSound(){
+  soundOn = !soundOn;
+  store("sunpur_sound", soundOn ? "1" : "0");
+  if (soundOn){
+    ensureAudio(); startAmbient(); playSound("click");
+  } else {
+    stopAmbient();
+    if (audioCtx && audioCtx.state !== "closed"){
+      try{ audioCtx.suspend(); }catch(e){}
+    }
+  }
+  render();
+}
+
+function bindTop(){
+  document.getElementById("lang").onclick = ()=>{ lang = lang==="en" ? "hi" : "en"; store("sunpur_lang", lang); render(); };
+  document.getElementById("fxb").onclick = ()=>{ fxOn = !fxOn; store("sunpur_fx", fxOn?"1":"0"); applyFx(); playSound("click"); render(); };
+  const sb = document.getElementById("soundb");
+  if (sb) sb.onclick = toggleSound;
+  if (!window.__sunpurAudioBound){
+    window.__sunpurAudioBound = true;
+    document.addEventListener("pointerdown", ()=>{
+      if (soundOn){ ensureAudio(); startAmbient(); }
+    }, {once:true});
+  }
+}
+
+/* ---- mood + ambient effects ---- */
+function currentMood(s){
+  if (s.ending){ const st = ENDINGS[s.ending].stars; return st>=4 ? "good" : st<=1 ? "bad" : (s.chapter===2 ? "dawn" : "night"); }
+  const t = s.turn;
+  if (s.chapter===1) return t<3 ? "dusk" : t<6 ? "evening" : t<9 ? "night" : "midnight";
+  return t<3 ? "dawn" : t<6 ? "morning" : "day";
+}
+function setMood(s){
+  if (!document.body) return;
+  document.body.setAttribute("data-mood", currentMood(s));
+  const lit = !s.ending && (has(s,"Lit lantern") || (s.scene==="temple" && s.flags.diya));
+  document.body.classList.toggle("lit", !!lit);
+}
+function animateBars(){
+  if (!document.querySelectorAll) return;
+  const go = ()=> document.querySelectorAll(".fill[data-to]").forEach(f=>{ f.style.width = f.getAttribute("data-to")+"%"; });
+  if (typeof requestAnimationFrame==="function") requestAnimationFrame(()=>requestAnimationFrame(go)); else go();
+}
+
+let fxOn = true, rafId = null, lastT = 0, dpr = 1;
+const MOTES = [];
+const MOTE_RGB = {dusk:"200,170,220",evening:"180,190,220",night:"170,190,230",midnight:"235,120,120",dawn:"255,214,140",morning:"255,230,170",day:"255,240,200",good:"255,215,120",bad:"150,60,60"};
+function initMotes(){ for(let i=0;i<26;i++) MOTES.push({x:Math.random(),y:Math.random(),r:1+Math.random()*2,vx:(Math.random()-.5)*0.00004,vy:-(0.00002+Math.random()*0.00004),ph:Math.random()*6.28}); }
+function resizeFx(){
+  const cv = document.getElementById("fx"); if(!cv || !cv.getContext) return;
+  dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+  cv.width = Math.floor((window.innerWidth||360)*dpr); cv.height = Math.floor((window.innerHeight||640)*dpr);
+}
+function loop(t){
+  const cv = document.getElementById("fx");
+  if (!cv || !cv.getContext || !fxOn){ rafId = null; return; }
+  const c = cv.getContext("2d"); if (!c){ rafId = null; return; }
+  const w = cv.width, hh = cv.height, dt = Math.min(50, t-lastT||16); lastT = t;
+  c.clearRect(0,0,w,hh);
+  const rgb = MOTE_RGB[document.body.getAttribute("data-mood")] || "200,200,220";
+  MOTES.forEach(m=>{
+    m.x += m.vx*dt; m.y += m.vy*dt;
+    if (m.y<-0.02){ m.y=1.02; m.x=Math.random(); }
+    if (m.x<-0.02) m.x=1.02; if (m.x>1.02) m.x=-0.02;
+    const a = .12 + .32*(0.5+0.5*Math.sin(t*0.0015+m.ph));
+    c.fillStyle = "rgba("+rgb+","+a.toFixed(3)+")";
+    c.beginPath(); c.arc(m.x*w, m.y*hh, m.r*dpr, 0, 6.283); c.fill();
+  });
+  rafId = requestAnimationFrame(loop);
+}
+function applyFx(){
+  if (!document.body) return;
+  document.body.classList.toggle("noanim", !fxOn);
+  if (fxOn){ if (!rafId && typeof requestAnimationFrame==="function") rafId = requestAnimationFrame(loop); }
+  else { if (rafId && typeof cancelAnimationFrame==="function") cancelAnimationFrame(rafId); rafId = null; }
+}
+
 function render(){
   const app = document.getElementById("app");
   const s = S;
   const found = loadEndings().length, total = Object.keys(ENDINGS).length;
+  const pv = s.prev || {health:s.health, food:s.food, nerve:s.nerve};
+  const fresh = s.fresh && fxOn, shake = s.shake && fxOn;
   if (s.ending){
+    if (window.updateGhostTownScene) window.updateGhostTownScene(s.scene || "midnight");
     const e = ENDINGS[s.ending];
     const ch2ok = fetchKey("sunpur_ch2")==="1" && s.chapter===1;
+    let stars = "";
+    for (let i=0;i<5;i++) stars += '<span class="st" style="animation-delay:'+(0.25+i*0.18).toFixed(2)+'s">'+(i<e.stars?"★":"☆")+'</span>';
     app.innerHTML = header()+
-      '<div class="card">'+
-      '<div class="stars">'+(e.stars? "★".repeat(e.stars)+"☆".repeat(5-e.stars) : "☆☆☆☆☆")+'</div>'+
+      '<div class="card end'+(fresh?' enter':'')+'">'+
+      '<div class="stars">'+stars+'</div>'+
       '<h2>'+esc(tr(e.title))+'</h2>'+
       (s.msg.length ? '<p class="msg">'+esc(s.msg.map(tr).join(" "))+'</p>' : '')+
-      '<p>'+esc(tr(e.text))+'</p>'+
+      '<p class="story">'+esc(tr(e.text))+'</p>'+
       '<p class="small">'+esc(tr(UI.found(found,total)))+'</p>'+
       '<div class="row"><button class="primary" id="again">'+esc(tr(UI.again))+'</button><button class="primary" id="share">'+esc(tr(UI.share))+'</button>'+
       (ch2ok ? '<button class="primary" id="ch2">'+esc(tr(UI.next))+'</button>' : '')+
       (s.chapter===2 ? '<button class="primary" id="ch1">'+esc(tr(UI.ch1))+'</button>' : '')+
       '</div><p class="small" id="shared"></p></div>';
-    bindLang();
+    bindTop();
     document.getElementById("again").onclick = ()=>newGame(s.chapter);
     document.getElementById("share").onclick = share;
     if (ch2ok) document.getElementById("ch2").onclick = ()=>newGame(2);
     if (s.chapter===2) document.getElementById("ch1").onclick = ()=>newGame(1);
+    setMood(s);
+    s.prev = {health:s.health, food:s.food, nerve:s.nerve}; s.fresh = false; s.shake = false;
     return;
   }
+  if (window.updateGhostTownScene) window.updateGhostTownScene(s.scene);
   const sc = SCENES[s.scene];
   const allowed = CONFIG.FREE_HINTS + s.extraHints;
   const left = Math.max(0, allowed - s.hintsUsed);
+  const bellIcon = (s.scene==="midnight" || s.scene==="temple") ? '<span class="bellicon">🔔</span> ' : '';
   let html = header()+
-    '<div class="stats">'+bar(UI.health,s.health,"var(--hp)")+bar(UI.food,s.food,"var(--food)")+bar(UI.nerve,s.nerve,"var(--nerve)")+'</div>'+
+    '<div class="stats">'+bar(UI.health,"health",s.health,pv.health)+bar(UI.food,"food",s.food,pv.food)+bar(UI.nerve,"nerve",s.nerve,pv.nerve)+'</div>'+
     '<div class="meta"><span>'+esc(tr(timeLabel(s)))+'</span><span>'+esc(tr(UI.carrying))+(s.inv.length? esc(s.inv.map(itemName).join(", ")) : esc(tr(UI.nothing)))+'</span></div>'+
-    '<div class="card"><h2>'+esc(tr(sc.title))+'</h2>'+
+    '<div class="card cinematic-foreground'+(fresh?' enter':'')+(shake?' shake':'')+(s.scene==="midnight"?' mid':'')+'"><h2>'+bellIcon+esc(tr(sc.title))+'</h2>'+
     (s.msg.length ? '<p class="msg">'+esc(s.msg.map(tr).join(" "))+'</p>' : '')+
     '<p>'+esc(tr(sc.text(s)))+'</p>'+
     (s.hint ? '<p class="hint">'+esc(tr(s.hint))+'</p>' : '')+
@@ -422,40 +1023,22 @@ function render(){
     html += '<button data-i="'+i+'"'+(hint?' disabled':'')+'>'+esc(tr(c.t))+(hint?'<span class="need">'+esc(tr(hint))+'</span>':'')+'</button>';
   });
   if (s.hintNote==="out"){
-    html += '<p class="small">'+esc(tr(UI.packages))+'</p>';
-    html += '<div class="row" id="packages">';
-    CONFIG.HINT_PACKAGES.forEach((pkg,i)=>{
-      html += '<button class="hintbtn" data-pkg="'+i+'">'+esc(tr(UI.package(pkg.amount,pkg.hints)))+'</button>';
-    });
-    html += '</div>';
-    html += '<button class="hintbtn" id="paid">'+esc(tr(UI.paid))+'</button>';
+    if (CONFIG.UPI_LINK) html += '<button class="hintbtn" id="buy">'+esc(tr(UI.buy))+'</button><button class="hintbtn" id="paid">'+esc(tr(UI.paid))+'</button>';
   } else {
     html += '<button class="hintbtn" id="hint">'+esc(tr(UI.hint(left)))+'</button>';
   }
   html += '</div></div>';
   app.innerHTML = html;
-  bindLang();
+  bindTop();
   app.querySelectorAll("button[data-i]").forEach(b=>{
     b.onclick = ()=> choose(s.scene, parseInt(b.getAttribute("data-i"),10));
   });
-  const h = document.getElementById("hint"); if (h) h.onclick = useHint;
-  app.querySelectorAll("button[data-pkg]").forEach(b=>{
-    b.onclick = ()=>{
-      const pkg = CONFIG.HINT_PACKAGES[parseInt(b.getAttribute("data-pkg"),10)];
-      payForPackage(pkg);
-    };
-  });
-  const paid = document.getElementById("paid");
-  if (paid) paid.onclick = ()=>{
-    const pending = JSON.parse(fetchKey("sunpur_pending_package")||"null");
-    if (pending && CONFIG.HINT_PACKAGES.some(p=>p.amount===pending.amount && p.hints===pending.hints)){
-      grantPaidHints(pending.hints, pending.amount);
-      store("sunpur_pending_package", "");
-    } else {
-      S.hintNote = null;
-      render();
-    }
-  };
+  const hb = document.getElementById("hint"); if (hb) hb.onclick = useHint;
+  const buy = document.getElementById("buy"); if (buy) buy.onclick = ()=>{ window.location.href = CONFIG.UPI_LINK; };
+  const paid = document.getElementById("paid"); if (paid) paid.onclick = grantPaidHints;
+  setMood(s);
+  animateBars();
+  s.prev = {health:s.health, food:s.food, nerve:s.nerve}; s.fresh = false; s.shake = false;
 }
 
 function share(){
@@ -473,7 +1056,135 @@ function share(){
 
 const savedLang = fetchKey("sunpur_lang");
 if (savedLang==="hi" || savedLang==="en") lang = savedLang;
+const reducedMotion = typeof matchMedia==="function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+const savedFx = fetchKey("sunpur_fx");
+fxOn = savedFx===null ? !reducedMotion : savedFx==="1";
+const savedSound = fetchKey("sunpur_sound");
+soundOn = savedSound===null ? true : savedSound==="1";
+initMotes();
+if (window.addEventListener) window.addEventListener("resize", resizeFx);
+if (document.addEventListener) document.addEventListener("visibilitychange", ()=>{
+  if (document.hidden){
+    if (rafId && typeof cancelAnimationFrame==="function") cancelAnimationFrame(rafId);
+    rafId = null;
+    stopAmbient();
+  } else {
+    applyFx();
+    if (soundOn && audioCtx) startAmbient();
+  }
+});
 newGame(1);
+resizeFx();
+applyFx();
+
+/* ===== CINEMATIC SCENE DIRECTOR ===== */
+(function(){
+  const panel=document.getElementById('sceneVisual');
+  if(!panel) return;
+  const sky=panel.querySelector('.scene-sky');
+  const moon=panel.querySelector('.moon');
+  const art=panel.querySelector('.scene-art');
+  const fog=panel.querySelector('.scene-fog');
+  const caption=panel.querySelector('.scene-caption');
+
+  function setAtmosphere(type){
+    panel.dataset.atmosphere=type;
+    const rain=panel.querySelector('.scene-rain');
+    if(rain) rain.style.opacity=(type==="rain"||type==="storm")?".72":"0";
+  }
+
+  function extras(title){
+    return `<div class="camera-layer">
+      <div class="cinematic-beam"></div><div class="cinematic-dust"></div>
+      <div class="cinematic-shadow"></div><div class="scene-mist"></div>
+      <div class="fog-ribbon"></div><div class="scene-breath"></div>
+      <div class="light-flicker"></div><div class="shadow-figure"></div>
+      <div class="cinematic-title">${title}</div>
+      <div class="scene-rain"></div>
+      <div class="scene-firefly f1"></div><div class="scene-firefly f2"></div><div class="scene-firefly f3"></div>
+      <div class="cinematic-letterbox top"></div><div class="cinematic-letterbox bottom"></div>
+    </div><div class="dramatic-flash"></div>`;
+  }
+
+  window.updateGhostTownScene=function(sceneId){
+    const id=String(sceneId||"courtyard");
+    const scenes={
+      courtyard:{
+        bg:"linear-gradient(#17162e 0%,#5a3549 56%,#080e14 100%)",
+        cap:"Sunpur • The Courtyard", atm:"mist",
+        art:`<div class="art-house"><div class="art-window"></div><div class="art-door"></div></div>
+             <div class="art-well"></div><div class="art-tree"></div><div class="art-ground"></div>`
+      },
+      well:{
+        bg:"linear-gradient(#06101d 0%,#263b4a 55%,#03090e 100%)",
+        cap:"Sunpur • The Old Well", atm:"water",
+        art:`<div class="art-well" style="right:38%;bottom:24%;transform:scale(1.38)"></div>
+             <div class="art-water"></div><div class="art-glint"></div><div class="art-ripple"></div>
+             <div class="art-tree"></div><div class="art-ground"></div>`
+      },
+      hall:{
+        bg:"linear-gradient(#04060c,#1b1722 58%,#04070a)",
+        cap:"Sunpur • The Abandoned Haveli", atm:"dark",
+        art:`<div class="art-house" style="left:50%;bottom:24%;transform:translateX(-50%) scale(1.35)">
+               <div class="art-window"></div><div class="art-door"></div></div>
+             <div class="art-tree"></div><div class="art-ground"></div>`
+      },
+      kitchen:{
+        bg:"linear-gradient(#07090d,#30231c 58%,#06080b)",
+        cap:"Sunpur • The Cold Kitchen", atm:"ember",
+        art:`<div class="art-house" style="left:50%;bottom:24%;transform:translateX(-50%) scale(.98)">
+               <div class="art-door"></div><div class="art-window" style="opacity:.22"></div></div>
+             <div class="art-lantern"></div><div class="art-ground"></div>`
+      },
+      upstairs:{
+        bg:"linear-gradient(#070912,#211923 58%,#05070c)",
+        cap:"Sunpur • The Child's Room", atm:"whisper",
+        art:`<div class="art-house" style="left:50%;bottom:24%;transform:translateX(-50%) scale(1.08)">
+               <div class="art-window"></div></div>
+             <div class="art-figure" style="opacity:.18;left:66%;bottom:24%"></div><div class="art-ground"></div>`
+      },
+      temple:{
+        bg:"linear-gradient(#070a18,#35243b 57%,#070a10)",
+        cap:"Sunpur • The Small Temple", atm:"bells",
+        art:`<div class="art-temple"><div class="art-bell"></div></div>
+             <div class="art-lantern"></div><div class="art-ground"></div>`
+      },
+      gate:{
+        bg:"linear-gradient(#020510,#18283c 57%,#050a10)",
+        cap:"Sunpur • The Rusted Gate", atm:"wind",
+        art:`<div class="art-gate-light"></div><div class="art-gate"><div class="art-chain"></div></div>
+             <div class="art-tree"></div><div class="art-ground"></div>`
+      },
+      midnight:{
+        bg:"linear-gradient(#010209,#100817 54%,#030509)",
+        cap:"Sunpur • Midnight", atm:"heartbeat",
+        art:`<div class="art-gate-light"></div><div class="art-gate" style="opacity:.55"><div class="art-chain"></div></div>
+             <div class="art-figure"></div><div class="art-lantern"></div><div class="art-ground"></div>`
+      }
+    };
+    const sc=scenes[id]||scenes.courtyard;
+    sky.style.background=sc.bg;
+    caption.textContent=sc.cap;
+    art.innerHTML=sc.art;
+    moon.style.opacity=(id==="morning"||id==="day")?".12":"1";
+    fog.style.opacity=id==="midnight"?"1":id==="gate"?".95":id==="well"?".86":".72";
+    panel.classList.remove("scene-pulse","scene-shock");
+    void panel.offsetWidth;
+    panel.classList.add("scene-pulse");
+    if(id==="midnight") panel.classList.add("scene-shock");
+    const flash=panel.querySelector(".dramatic-flash");
+    if(flash){
+      flash.style.animation="none"; void flash.offsetWidth;
+      if(id==="midnight" || id==="temple") flash.style.animation="dramaticFlash .75s ease";
+    }
+    setAtmosphere(sc.atm);
+    panel.querySelectorAll(".cinematic-beam,.cinematic-dust,.cinematic-shadow,.scene-mist,.cinematic-title,.scene-rain,.scene-firefly,.cinematic-letterbox").forEach(e=>e.remove());
+    panel.insertAdjacentHTML("beforeend",extras(sc.cap));
+    setAtmosphere(sc.atm);
+  };
+  window.updateGhostTownScene((window.S&&window.S.scene)||"courtyard");
+})();
+
 </script>
 </body>
 </html>
