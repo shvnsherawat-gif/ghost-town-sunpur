@@ -19,7 +19,7 @@ h1{font-size:20px;letter-spacing:.06em;margin:4px 0 2px;color:var(--accent)}
 .meta{display:flex;justify-content:space-between;gap:8px;font-family:system-ui,"Nirmala UI",sans-serif;font-size:12px;color:var(--mute);margin-bottom:10px}
 .card.cinematic-foreground{animation:foregroundEnter .65s cubic-bezier(.2,.8,.2,1)}
 @keyframes foregroundEnter{from{opacity:.2;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
-.card{background:rgba(12,15,22,.84);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:18px;box-shadow:0 18px 55px rgba(0,0,0,.32)}
+.card{background:rgba(12,15,22,.93);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:18px;box-shadow:0 18px 55px rgba(0,0,0,.32);contain:layout style}
 h2{margin:0 0 8px;font-size:19px}
 p{margin:0 0 10px}
 .msg{color:var(--accent);font-style:italic}
@@ -102,6 +102,7 @@ button.mini+button.mini{margin-left:6px}
 #sceneVisual{
   position:fixed; inset:0; width:100%; height:100vh; overflow:hidden;
   z-index:0; pointer-events:none; background:#080a10;
+  contain:layout paint;
 }
 #sceneVisual .scene-sky{
   position:absolute; inset:0;
@@ -123,10 +124,10 @@ button.mini+button.mini{margin-left:6px}
 #sceneVisual .scene-fog{
   position:absolute;left:-15%;right:-15%;bottom:8%;height:31%;
   background:
-    radial-gradient(ellipse at 20% 50%,rgba(225,230,240,.18),transparent 57%),
-    radial-gradient(ellipse at 70% 42%,rgba(225,230,240,.14),transparent 54%);
-  filter:blur(12px);animation:sceneFogMove 15s ease-in-out infinite alternate;
-  opacity:.75;transition:opacity 1s;
+    radial-gradient(ellipse at 20% 50%,rgba(225,230,240,.18),rgba(225,230,240,.07) 34%,transparent 66%),
+    radial-gradient(ellipse at 70% 42%,rgba(225,230,240,.14),rgba(225,230,240,.05) 32%,transparent 64%);
+  animation:sceneFogMove 15s ease-in-out infinite alternate;
+  opacity:.75;transition:opacity 1s;will-change:transform;
 }
 #sceneVisual .scene-vignette{
   position:absolute;inset:0;
@@ -256,11 +257,11 @@ button.mini+button.mini{margin-left:6px}
   position:absolute;left:50%;bottom:31%;margin-left:35px;width:22px;height:30px;
   background:#d59b43;box-shadow:0 0 28px #d59b43;border-radius:5px;animation:sceneFlicker 1.6s infinite;
 }
-#sceneVisual.scene-pulse{animation:sceneBackgroundPulse .8s ease}
+#sceneVisual.scene-pulse::before{animation:sceneBackgroundPulse .8s ease}
 @keyframes starDrift{from{transform:translateY(0)}to{transform:translateY(18px)}}
 @keyframes sceneFogMove{from{transform:translateX(-4%)}to{transform:translateX(8%)}}
 @keyframes sceneFlicker{0%,100%{opacity:.9}48%{opacity:.55}52%{opacity:1}}
-@keyframes sceneBackgroundPulse{0%{filter:brightness(1)}45%{filter:brightness(1.22)}100%{filter:brightness(1)}}
+@keyframes sceneBackgroundPulse{0%{opacity:0}45%{opacity:1}100%{opacity:0}}
 @media(max-width:600px){
   #sceneVisual .art-house{transform:scale(.72);transform-origin:left bottom}
   #sceneVisual .art-gate{transform:translateX(-50%) scale(.72);transform-origin:center bottom}
@@ -273,14 +274,17 @@ button.mini+button.mini{margin-left:6px}
 /* ===== CINEMATIC SCENE SYSTEM ===== */
 #sceneVisual::after{
   content:"";position:absolute;inset:0;pointer-events:none;z-index:20;
-  background:linear-gradient(180deg,rgba(0,0,0,.32),transparent 18%,transparent 78%,rgba(0,0,0,.48));
-  mix-blend-mode:multiply;
+  background:linear-gradient(180deg,rgba(0,0,0,.34),transparent 18%,transparent 78%,rgba(0,0,0,.5));
+}
+#sceneVisual::before{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:22;opacity:0;
+  background:radial-gradient(ellipse at 50% 45%,rgba(255,244,214,.16),rgba(255,236,190,.06) 55%,transparent 80%);
 }
 #sceneVisual .cinematic-beam{
   position:absolute;left:-15%;top:-20%;width:70%;height:140%;
-  background:linear-gradient(105deg,transparent 0 42%,rgba(255,222,155,.09) 50%,transparent 62%);
-  transform:rotate(9deg);filter:blur(12px);opacity:.7;
-  animation:beamDrift 13s ease-in-out infinite alternate;z-index:7;
+  background:linear-gradient(105deg,transparent 0 34%,rgba(255,222,155,.04) 44%,rgba(255,222,155,.09) 50%,rgba(255,222,155,.04) 57%,transparent 70%);
+  transform:rotate(9deg);opacity:.7;
+  animation:beamDrift 13s ease-in-out infinite alternate;z-index:7;will-change:transform;
 }
 #sceneVisual .cinematic-dust{
   position:absolute;inset:0;z-index:8;opacity:.55;
@@ -294,10 +298,10 @@ button.mini+button.mini{margin-left:6px}
 #sceneVisual .scene-mist{
   position:absolute;left:-20%;right:-20%;bottom:7%;height:42%;z-index:10;
   background:
-    radial-gradient(ellipse at 25% 55%,rgba(220,230,240,.12),transparent 48%),
-    radial-gradient(ellipse at 65% 42%,rgba(220,230,240,.09),transparent 46%),
-    radial-gradient(ellipse at 90% 68%,rgba(220,230,240,.1),transparent 44%);
-  filter:blur(15px);animation:mistCrawl 17s ease-in-out infinite alternate;
+    radial-gradient(ellipse at 25% 55%,rgba(220,230,240,.12),rgba(220,230,240,.05) 28%,transparent 58%),
+    radial-gradient(ellipse at 65% 42%,rgba(220,230,240,.09),rgba(220,230,240,.04) 26%,transparent 56%),
+    radial-gradient(ellipse at 90% 68%,rgba(220,230,240,.1),rgba(220,230,240,.04) 24%,transparent 54%);
+  animation:mistCrawl 17s ease-in-out infinite alternate;will-change:transform;
 }
 #sceneVisual .cinematic-title{
   position:absolute;left:50%;top:11%;transform:translateX(-50%);
@@ -312,10 +316,12 @@ button.mini+button.mini{margin-left:6px}
 #sceneVisual .cinematic-letterbox.top{top:0}
 #sceneVisual .cinematic-letterbox.bottom{bottom:0}
 #sceneVisual .scene-rain{
-  position:absolute;inset:-20%;z-index:11;opacity:0;
+  position:absolute;inset:-20%;z-index:11;opacity:0;display:none;
   background:repeating-linear-gradient(102deg,transparent 0 12px,rgba(190,210,225,.18) 13px,transparent 14px 28px);
-  transform:rotate(8deg);animation:rainFall .8s linear infinite;
+  transform:rotate(8deg);will-change:transform;
 }
+#sceneVisual[data-atmosphere="rain"] .scene-rain,
+#sceneVisual[data-atmosphere="storm"] .scene-rain{display:block;animation:rainFall .8s linear infinite}
 #sceneVisual .scene-firefly{
   position:absolute;width:4px;height:4px;border-radius:50%;z-index:13;
   background:#ffe8a1;box-shadow:0 0 10px 3px rgba(255,224,130,.65);
@@ -331,25 +337,25 @@ button.mini+button.mini{margin-left:6px}
 @keyframes mistCrawl{from{transform:translateX(-4%)}to{transform:translateX(9%)}}
 @keyframes rainFall{from{transform:translate(-2%,-2%) rotate(8deg)}to{transform:translate(5%,8%) rotate(8deg)}}
 @keyframes firefly{0%,100%{opacity:.08;transform:translate(0,8px) scale(.5)}40%{opacity:1;transform:translate(22px,-18px) scale(1.2)}75%{opacity:.35;transform:translate(-10px,-36px) scale(.8)}}
-@keyframes shockFlash{0%{opacity:1;box-shadow:inset 0 0 0 rgba(255,255,255,0)}18%{opacity:.25;box-shadow:inset 0 0 80px rgba(255,255,255,.35)}100%{opacity:1}}
+@keyframes shockFlash{0%{opacity:1}18%{opacity:.25}100%{opacity:1}}
 @keyframes shockZoom{0%{transform:scale(1.04)}100%{transform:scale(1)}}
 
 
 /* ===== CINEMATIC V3: dramatic camera + atmosphere ===== */
 #sceneVisual .camera-layer{
   position:absolute;inset:-5%;z-index:6;transform-origin:50% 55%;
-  animation:cameraDrift 12s ease-in-out infinite alternate;
+  animation:cameraDrift 12s ease-in-out infinite alternate;will-change:transform;
 }
 #sceneVisual .light-flicker{
   position:absolute;inset:0;z-index:12;pointer-events:none;
-  background:radial-gradient(circle at 50% 48%,rgba(255,207,125,.12),transparent 28%);
-  mix-blend-mode:screen;animation:lightFlicker 3.2s steps(8,end) infinite;
+  background:radial-gradient(circle at 50% 48%,rgba(255,207,125,.14),transparent 30%);
+  animation:lightFlicker 3.2s steps(8,end) infinite;
 }
 #sceneVisual .fog-ribbon{
   position:absolute;left:-30%;right:-30%;bottom:16%;height:24%;
-  z-index:14;filter:blur(18px);opacity:.45;
-  background:linear-gradient(90deg,transparent,rgba(215,225,235,.13),transparent);
-  transform:skewY(-2deg);animation:fogRibbon 11s ease-in-out infinite alternate;
+  z-index:14;opacity:.45;
+  background:linear-gradient(90deg,transparent,rgba(215,225,235,.06) 28%,rgba(215,225,235,.13) 50%,rgba(215,225,235,.06) 72%,transparent);
+  transform:skewY(-2deg);animation:fogRibbon 11s ease-in-out infinite alternate;will-change:transform;
 }
 #sceneVisual .dramatic-flash{
   position:absolute;inset:0;z-index:30;background:#fff;opacity:0;pointer-events:none;
@@ -394,11 +400,11 @@ button.mini+button.mini{margin-left:6px}
 @keyframes fogRibbon{from{transform:translateX(-4%) skewY(-2deg)}to{transform:translateX(12%) skewY(-2deg)}}
 @keyframes breath{0%,100%{transform:translateX(-50%) scale(.9);opacity:.25}50%{transform:translateX(-50%) scale(1.08);opacity:.65}}
 @keyframes breathFast{0%,100%{transform:translateX(-50%) scale(.82);opacity:.18}50%{transform:translateX(-50%) scale(1.14);opacity:.72}}
-@keyframes figureApproach{from{transform:translateX(-50%) scale(.72);filter:blur(1.5px)}to{transform:translateX(-50%) scale(1.18);filter:blur(0)}}
+@keyframes figureApproach{from{transform:translateX(-50%) scale(.72);opacity:.62}to{transform:translateX(-50%) scale(1.18);opacity:.92}}
 @keyframes figureSway{0%,100%{transform:translateX(-50%) rotate(-2deg)}50%{transform:translateX(-46%) rotate(2deg)}}
 @keyframes bellDramatic{0%,100%{transform:translateX(-50%) rotate(-2deg)}20%{transform:translateX(-50%) rotate(8deg)}40%{transform:translateX(-50%) rotate(-7deg)}60%{transform:translateX(-50%) rotate(4deg)}}
 @keyframes treeSway{0%,100%{transform:rotate(-1deg)}50%{transform:rotate(1.5deg)}}
-@keyframes lanternDramatic{0%,100%{filter:brightness(.8);transform:scale(1)}30%{filter:brightness(1.5);transform:scale(1.08)}33%{filter:brightness(.65)}65%{filter:brightness(1.25)}}
+@keyframes lanternDramatic{0%,100%{opacity:.72;transform:scale(1)}30%{opacity:1;transform:scale(1.08)}33%{opacity:.58;transform:scale(1)}65%{opacity:.93;transform:scale(1.03)}}
 @keyframes glintCinematic{0%,100%{opacity:.12;transform:scale(.45)}35%{opacity:1;transform:scale(1.5)}55%{opacity:.65;transform:scale(.9)}}
 @keyframes dramaticFlash{0%{opacity:0}10%{opacity:.7}24%{opacity:0}100%{opacity:0}}
 
@@ -422,9 +428,20 @@ button.mini+button.mini{margin-left:6px}
 /* ============ CONFIG (edit these) ============ */
 const CONFIG = {
   FREE_HINTS: 3,          // free hints per playthrough
-  UPI_LINK: "",           // e.g. "upi://pay?pa=yourname@upi&pn=YourName&am=10&cu=INR" (leave "" to hide the buy button)
+  UPI_ID: "8383028896@pthdfc",        // your UPI / Paytm handle
+  UPI_NAME: "Ghost Town Sunpur",      // name shown inside the payment app
+  UPI_AMOUNT: "10",                   // amount in rupees ("" = let the payer choose)
   EXTRA_HINTS_PER_PURCHASE: 3
 };
+/* Built from the fields above. UPI deep links only open on a phone that has a
+   UPI app installed; on desktop the ID is shown instead so it can be copied. */
+CONFIG.UPI_LINK = CONFIG.UPI_ID
+  ? "upi://pay?pa="+CONFIG.UPI_ID   // VPA goes in raw; some UPI apps mis-read a %40
+    + "&pn="+encodeURIComponent(CONFIG.UPI_NAME)
+    + (CONFIG.UPI_AMOUNT ? "&am="+encodeURIComponent(CONFIG.UPI_AMOUNT) : "")
+    + "&cu=INR"
+    + "&tn="+encodeURIComponent("Hints")
+  : "";
 
 /* ============ BILINGUAL HELPERS ============ */
 const L = (en, hi) => ({en, hi});
@@ -446,6 +463,9 @@ const UI = {
   hint: n => L("Hint ("+n+" left)","संकेत ("+n+" बचे)"),
   nohints: L("No free hints left this run.","इस बार के मुफ़्त संकेत खत्म हो गए।"),
   buy: L("Buy more hints","और संकेत खरीदो"), paid: L("I've paid, give me hints","मैंने भुगतान कर दिया, संकेत दो"),
+  payOpen: L("Opening your UPI app…","तुम्हारा UPI ऐप खुल रहा है…"),
+  payManual: a => L("Pay "+(a?"₹"+a+" ":"")+"to this UPI ID, then tap \"I've paid\": ","इस UPI आईडी पर "+(a?"₹"+a+" ":"")+"भेजो, फिर \"मैंने भुगतान कर दिया\" दबाओ: "),
+  payCopied: L("UPI ID copied.","UPI आईडी कॉपी हो गई।"),
   soundOn: L("Sound on","आवाज़ चालू"), soundOff: L("Sound off","आवाज़ बंद"),
   growl: L("Your stomach growls.","पेट में भूख कुलबुलाती है।")
 };
@@ -720,10 +740,6 @@ function choose(sceneId, idx){
   }
   s.prev = prev; s.fresh = true; s.shake = (s.health<prev.health || s.nerve<prev.nerve);
   render();
-  if (window.updateGhostTownScene && s.scene) {
-    const p=document.getElementById("sceneVisual");
-    if(p){ p.classList.remove("scene-shock"); void p.offsetWidth; if(s.scene==="midnight") p.classList.add("scene-shock"); }
-  }
   if (s.scene) setTimeout(()=>playSceneSound(s.scene), 180);
 }
 
@@ -737,6 +753,28 @@ function useHint(){
   render();
 }
 function grantPaidHints(){ S.extraHints += CONFIG.EXTRA_HINTS_PER_PURCHASE; S.hintNote = null; render(); }
+
+/* Tries to open a UPI app. If nothing handles the link (desktop, or no UPI app
+   installed) the page stays visible, so we show the plain UPI ID instead and
+   copy it to the clipboard — the player is never left with a dead button. */
+function openUpi(){
+  const note = document.getElementById("upinote");
+  const show = t => { if (note) note.textContent = t; };
+  if (!CONFIG.UPI_LINK) return;
+  show(tr(UI.payOpen));
+  try { window.location.href = CONFIG.UPI_LINK; } catch(e){}
+  setTimeout(()=>{
+    if (document.hidden) return;   // a UPI app took over; nothing to fall back to
+    const manual = tr(UI.payManual(CONFIG.UPI_AMOUNT)) + CONFIG.UPI_ID;
+    show(manual);
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText)
+        navigator.clipboard.writeText(CONFIG.UPI_ID)
+          .then(()=> show(manual + " — " + tr(UI.payCopied)))
+          .catch(()=>{});
+    } catch(e){}
+  }, 1200);
+}
 
 /* ============ STORAGE ============ */
 function store(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
@@ -942,27 +980,51 @@ let fxOn = true, rafId = null, lastT = 0, dpr = 1;
 const MOTES = [];
 const MOTE_RGB = {dusk:"200,170,220",evening:"180,190,220",night:"170,190,230",midnight:"235,120,120",dawn:"255,214,140",morning:"255,230,170",day:"255,240,200",good:"255,215,120",bad:"150,60,60"};
 function initMotes(){ for(let i=0;i<26;i++) MOTES.push({x:Math.random(),y:Math.random(),r:1+Math.random()*2,vx:(Math.random()-.5)*0.00004,vy:-(0.00002+Math.random()*0.00004),ph:Math.random()*6.28}); }
+let fxCanvas = null, fxCtx = null, fxMood = "", fxRGB = "200,200,220", lastDraw = 0;
+const FX_FRAME_MS = 33; /* cap motes at ~30fps; they are slow-moving, so this is invisible */
+function fxSurface(){
+  if (!fxCanvas){
+    fxCanvas = document.getElementById("fx");
+    if (!fxCanvas || !fxCanvas.getContext) return null;
+    fxCtx = fxCanvas.getContext("2d", {alpha:true});
+  }
+  return fxCtx ? fxCanvas : null;
+}
 function resizeFx(){
-  const cv = document.getElementById("fx"); if(!cv || !cv.getContext) return;
+  const cv = fxSurface(); if(!cv) return;
   dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-  cv.width = Math.floor((window.innerWidth||360)*dpr); cv.height = Math.floor((window.innerHeight||640)*dpr);
+  const w = Math.floor((window.innerWidth||360)*dpr), h = Math.floor((window.innerHeight||640)*dpr);
+  /* mobile browsers fire resize constantly as the URL bar hides: skip no-op reallocations */
+  if (cv.width === w && cv.height === h) return;
+  cv.width = w; cv.height = h;
+}
+let resizeTimer = null;
+function resizeFxDeferred(){
+  if (resizeTimer) clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(()=>{ resizeTimer = null; resizeFx(); }, 150);
 }
 function loop(t){
-  const cv = document.getElementById("fx");
-  if (!cv || !cv.getContext || !fxOn){ rafId = null; return; }
-  const c = cv.getContext("2d"); if (!c){ rafId = null; return; }
-  const w = cv.width, hh = cv.height, dt = Math.min(50, t-lastT||16); lastT = t;
+  if (!fxOn || document.hidden){ rafId = null; return; }
+  const cv = fxSurface();
+  if (!cv){ rafId = null; return; }
+  rafId = requestAnimationFrame(loop);
+  if (t - lastDraw < FX_FRAME_MS) return;
+  const c = fxCtx;
+  const w = cv.width, hh = cv.height, dt = Math.min(50, t-lastT||16);
+  lastT = t; lastDraw = t;
   c.clearRect(0,0,w,hh);
-  const rgb = MOTE_RGB[document.body.getAttribute("data-mood")] || "200,200,220";
-  MOTES.forEach(m=>{
+  const mood = document.body.getAttribute("data-mood");
+  if (mood !== fxMood){ fxMood = mood; fxRGB = MOTE_RGB[mood] || "200,200,220"; }
+  const rgb = fxRGB, tw = t*0.0015, rad = dpr;
+  for (let i=0;i<MOTES.length;i++){
+    const m = MOTES[i];
     m.x += m.vx*dt; m.y += m.vy*dt;
     if (m.y<-0.02){ m.y=1.02; m.x=Math.random(); }
-    if (m.x<-0.02) m.x=1.02; if (m.x>1.02) m.x=-0.02;
-    const a = .12 + .32*(0.5+0.5*Math.sin(t*0.0015+m.ph));
-    c.fillStyle = "rgba("+rgb+","+a.toFixed(3)+")";
-    c.beginPath(); c.arc(m.x*w, m.y*hh, m.r*dpr, 0, 6.283); c.fill();
-  });
-  rafId = requestAnimationFrame(loop);
+    if (m.x<-0.02) m.x=1.02; else if (m.x>1.02) m.x=-0.02;
+    const a = .12 + .32*(0.5+0.5*Math.sin(tw+m.ph));
+    c.fillStyle = "rgba("+rgb+","+a.toFixed(2)+")";
+    c.beginPath(); c.arc(m.x*w, m.y*hh, m.r*rad, 0, 6.283); c.fill();
+  }
 }
 function applyFx(){
   if (!document.body) return;
@@ -1023,7 +1085,7 @@ function render(){
     html += '<button data-i="'+i+'"'+(hint?' disabled':'')+'>'+esc(tr(c.t))+(hint?'<span class="need">'+esc(tr(hint))+'</span>':'')+'</button>';
   });
   if (s.hintNote==="out"){
-    if (CONFIG.UPI_LINK) html += '<button class="hintbtn" id="buy">'+esc(tr(UI.buy))+'</button><button class="hintbtn" id="paid">'+esc(tr(UI.paid))+'</button>';
+    if (CONFIG.UPI_LINK) html += '<button class="hintbtn" id="buy">'+esc(tr(UI.buy))+'</button><button class="hintbtn" id="paid">'+esc(tr(UI.paid))+'</button><p class="small" id="upinote"></p>';
   } else {
     html += '<button class="hintbtn" id="hint">'+esc(tr(UI.hint(left)))+'</button>';
   }
@@ -1034,7 +1096,7 @@ function render(){
     b.onclick = ()=> choose(s.scene, parseInt(b.getAttribute("data-i"),10));
   });
   const hb = document.getElementById("hint"); if (hb) hb.onclick = useHint;
-  const buy = document.getElementById("buy"); if (buy) buy.onclick = ()=>{ window.location.href = CONFIG.UPI_LINK; };
+  const buy = document.getElementById("buy"); if (buy) buy.onclick = openUpi;
   const paid = document.getElementById("paid"); if (paid) paid.onclick = grantPaidHints;
   setMood(s);
   animateBars();
@@ -1062,7 +1124,7 @@ fxOn = savedFx===null ? !reducedMotion : savedFx==="1";
 const savedSound = fetchKey("sunpur_sound");
 soundOn = savedSound===null ? true : savedSound==="1";
 initMotes();
-if (window.addEventListener) window.addEventListener("resize", resizeFx);
+if (window.addEventListener) window.addEventListener("resize", resizeFxDeferred, {passive:true});
 if (document.addEventListener) document.addEventListener("visibilitychange", ()=>{
   if (document.hidden){
     if (rafId && typeof cancelAnimationFrame==="function") cancelAnimationFrame(rafId);
@@ -1089,25 +1151,29 @@ applyFx();
 
   function setAtmosphere(type){
     panel.dataset.atmosphere=type;
-    const rain=panel.querySelector('.scene-rain');
-    if(rain) rain.style.opacity=(type==="rain"||type==="storm")?".72":"0";
+    if(rainEl) rainEl.style.opacity=(type==="rain"||type==="storm")?".72":"0";
   }
 
-  function extras(title){
-    return `<div class="camera-layer">
+  /* These overlay layers are identical for every scene, so they are created once
+     and reused. Rebuilding them per scene change stacked up duplicate full-screen
+     animated layers and got slower the longer you played. */
+  const extrasMarkup = `<div class="camera-layer">
       <div class="cinematic-beam"></div><div class="cinematic-dust"></div>
       <div class="cinematic-shadow"></div><div class="scene-mist"></div>
       <div class="fog-ribbon"></div><div class="scene-breath"></div>
       <div class="light-flicker"></div><div class="shadow-figure"></div>
-      <div class="cinematic-title">${title}</div>
+      <div class="cinematic-title"></div>
       <div class="scene-rain"></div>
       <div class="scene-firefly f1"></div><div class="scene-firefly f2"></div><div class="scene-firefly f3"></div>
       <div class="cinematic-letterbox top"></div><div class="cinematic-letterbox bottom"></div>
     </div><div class="dramatic-flash"></div>`;
-  }
+  panel.insertAdjacentHTML("beforeend", extrasMarkup);
+  const cinTitle = panel.querySelector(".cinematic-title");
+  const rainEl   = panel.querySelector(".scene-rain");
+  const flashEl  = panel.querySelector(".dramatic-flash");
+  let currentScene = null;
 
-  window.updateGhostTownScene=function(sceneId){
-    const id=String(sceneId||"courtyard");
+  const SCENE_DATA = (function(){
     const scenes={
       courtyard:{
         bg:"linear-gradient(#17162e 0%,#5a3549 56%,#080e14 100%)",
@@ -1162,25 +1228,32 @@ applyFx();
              <div class="art-figure"></div><div class="art-lantern"></div><div class="art-ground"></div>`
       }
     };
-    const sc=scenes[id]||scenes.courtyard;
-    sky.style.background=sc.bg;
-    caption.textContent=sc.cap;
-    art.innerHTML=sc.art;
-    moon.style.opacity=(id==="morning"||id==="day")?".12":"1";
-    fog.style.opacity=id==="midnight"?"1":id==="gate"?".95":id==="well"?".86":".72";
+    return scenes;
+  })();
+
+  window.updateGhostTownScene=function(sceneId){
+    const id=String(sceneId||"courtyard");
+    const sc=SCENE_DATA[id]||SCENE_DATA.courtyard;
+    /* Only touch the DOM when the scene actually changed. Staying in the same
+       place (picking up an item, reading a hint) now costs nothing. */
+    if(id!==currentScene){
+      currentScene=id;
+      sky.style.background=sc.bg;
+      caption.textContent=sc.cap;
+      if(cinTitle) cinTitle.textContent=sc.cap;
+      art.innerHTML=sc.art;
+      moon.style.opacity=(id==="morning"||id==="day")?".12":"1";
+      fog.style.opacity=id==="midnight"?"1":id==="gate"?".95":id==="well"?".86":".72";
+      setAtmosphere(sc.atm);
+    }
     panel.classList.remove("scene-pulse","scene-shock");
     void panel.offsetWidth;
     panel.classList.add("scene-pulse");
     if(id==="midnight") panel.classList.add("scene-shock");
-    const flash=panel.querySelector(".dramatic-flash");
-    if(flash){
-      flash.style.animation="none"; void flash.offsetWidth;
-      if(id==="midnight" || id==="temple") flash.style.animation="dramaticFlash .75s ease";
+    if(flashEl){
+      flashEl.style.animation="none"; void flashEl.offsetWidth;
+      if(id==="midnight" || id==="temple") flashEl.style.animation="dramaticFlash .75s ease";
     }
-    setAtmosphere(sc.atm);
-    panel.querySelectorAll(".cinematic-beam,.cinematic-dust,.cinematic-shadow,.scene-mist,.cinematic-title,.scene-rain,.scene-firefly,.cinematic-letterbox").forEach(e=>e.remove());
-    panel.insertAdjacentHTML("beforeend",extras(sc.cap));
-    setAtmosphere(sc.atm);
   };
   window.updateGhostTownScene((window.S&&window.S.scene)||"courtyard");
 })();
