@@ -1229,8 +1229,28 @@ async function startHintPurchase(){
   if(btn) btn.disabled=true;
   show(tr(UI.paymentStarting));
 
-  // Open a blank tab immediately from the user's click so browsers are less
-  // likely to block the later navigation after the async server request.
+  // FORENSIC FIX: the previous version opened a blank tab before authentication.
+  // If anonymous Supabase sign-in failed, authHeaders() threw before fetch(), so
+  // create-hint-order received NO invocation at all. Authenticate first and only
+  // then open the payment window.
+  let session;
+  try{
+    session=await ensureSupabaseSession();
+  }catch(e){
+    const msg=e instanceof Error ? e.message : String(e);
+    console.error("Sunpur payment auth failure:", e);
+    show("Payment connection error: "+msg);
+    if(btn) btn.disabled=false;
+    return;
+  }
+  if(!session?.access_token){
+    show("Payment connection error: no Supabase access token.");
+    if(btn) btn.disabled=false;
+    return;
+  }
+
+  // Open only after authentication succeeds, so a failed auth step never leaves
+  // the player with an unexplained blank tab.
   let paymentWindow=null;
   try{ paymentWindow=window.open("about:blank","_blank","noopener,noreferrer"); }catch(e){}
 
@@ -1243,7 +1263,9 @@ async function startHintPurchase(){
     let data=null; try{data=await res.json();}catch(e){}
     if(!res.ok || !data || !data.ok || !data.checkout_url || !data.order_id){
       if(paymentWindow && !paymentWindow.closed) paymentWindow.close();
-      show((data&&data.error) ? String(data.error) : tr(UI.paymentFailed));
+      const detail=(data&&data.error) ? String(data.error) : ("HTTP "+res.status);
+      console.error("Sunpur create-hint-order failure:", {status:res.status,data});
+      show("Payment connection error: "+detail);
       if(btn) btn.disabled=false;
       return;
     }
@@ -1255,7 +1277,6 @@ async function startHintPurchase(){
     if(paymentWindow && !paymentWindow.closed){
       paymentWindow.location.href=data.checkout_url;
     }else{
-      // Fallback if the browser blocked the new tab.
       window.location.href=data.checkout_url;
       return;
     }
@@ -1266,7 +1287,9 @@ async function startHintPurchase(){
     await waitForPayment(data.order_id,show,btn);
   }catch(e){
     if(paymentWindow && !paymentWindow.closed) paymentWindow.close();
-    show(tr(UI.paymentFailed));
+    const msg=e instanceof Error ? e.message : String(e);
+    console.error("Sunpur payment request failure:", e);
+    show("Payment connection error: "+msg);
     if(btn) btn.disabled=false;
   }
 }
