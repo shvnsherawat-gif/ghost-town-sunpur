@@ -514,7 +514,7 @@ const UI = {
   found: (a,b)=>L("Endings found: "+a+" of "+b+". Try again and find a better one.","मिले अंत: "+a+" / "+b+"। फिर खेलो और बेहतर अंत ढूँढो।"),
   copied: L("Copied. Paste it in WhatsApp.","कॉपी हो गया। WhatsApp में चिपकाओ।"),
   hint: n => L("Hint ("+n+" left)","संकेत ("+n+" बचे)"),
-  nohints: L("Your free hint for this chapter has been used. Pay ₹10 for 2 more hints.","इस अध्याय का मुफ़्त संकेत इस्तेमाल हो चुका है। 2 और संकेतों के लिए ₹10 दें।"),
+  nohints: L("Your free hint for this playthrough has been used. You can pay ₹10 for 2 more hints.","इस बार के खेल का मुफ़्त संकेत इस्तेमाल हो चुका है। 2 और संकेतों के लिए ₹10 दें।"),
   buy: L("Get 2 hints — ₹10","2 संकेत पाएं — ₹10"),
   paid: L("Check payment","भुगतान जाँचें"),
   paymentStarting: L("Opening Razorpay secure checkout…","Razorpay सुरक्षित भुगतान खोला जा रहा है…"),
@@ -532,6 +532,7 @@ const UI = {
 
 /* ============ ENDINGS ============ */
 const ENDINGS = {
+  end_no_hint:{stars:1, good:false, title:L("Game Over — Wrong Choice","गेम ओवर — गलत विकल्प"), text:L("You had used your free hint, did not get more hints, and chose a wrong option. The run ends here.","तुमने अपना मुफ़्त संकेत इस्तेमाल कर लिया था, अतिरिक्त संकेत नहीं लिए, और गलत विकल्प चुना। यह खेल यहीं समाप्त होता है।")},
   end_bell_diya:{stars:5, good:true, title:L("Dawn in Sunpur","सुनपुर की भोर"), text:L("The diya burns steady in the temple as you ring the bell three times. The watchman lowers his lantern, smiles for the first time in decades, and turns to mist. As the sun rises, the fog burns away and you see the road clearly. Behind you, the village looks like a place people once loved, not a place they ran from. You walk out slowly, unafraid.","मंदिर में दिया स्थिर जल रहा है, और तुम घंटी तीन बार बजाते हो। चौकीदार अपनी लालटेन नीचे करता है, दशकों में पहली बार मुस्कुराता है, और धुंध बनकर घुल जाता है। सूरज उगता है, कोहरा छँट जाता है और सड़क साफ़ दिखने लगती है। पीछे गाँव अब ऐसी जगह लगता है जिसे लोग कभी प्यार करते थे, ऐसी जगह नहीं जिससे वे भागे थे। तुम धीरे-धीरे, बिना डरे बाहर निकल जाते हो।")},
   end_peace:{stars:4, good:true, title:L("The Watchman's Rest","चौकीदार का विश्राम"), text:L("You tell Kalu that everyone reached safety because of him. His shoulders drop as if a weight has finally been lifted. He bows once, sets his lantern on the ground, and vanishes. The bell rings a last time on its own. At dawn, the fog is gone.","तुम कालू से कहते हो कि उसी की वजह से सब सुरक्षित पहुँचे। उसके कंधे ढीले पड़ जाते हैं, जैसे कोई बोझ उतर गया हो। वह एक बार झुकता है, लालटेन ज़मीन पर रखता है और ओझल हो जाता है। घंटी आख़िरी बार अपने आप बजती है। भोर तक कोहरा छँट चुका होता है।")},
   end_bell:{stars:3, good:true, title:L("Three Rings","तीन घंटियाँ"), text:L("You reach the temple and ring the bell three times. The watchman stops at the threshold of the shrine, nods, and fades. The fog stays until sunrise, and the temple feels colder without light in the diya. You survive, though you always wonder if he was truly at peace.","तुम मंदिर पहुँचकर घंटी तीन बार बजाते हो। चौकीदार गर्भगृह की देहरी पर रुकता है, सिर हिलाता है और ओझल हो जाता है। कोहरा सूरज उगने तक रहता है, और दिया बुझा होने से मंदिर कुछ ज़्यादा ठंडा लगता है। तुम बच जाते हो, पर सोचते रह जाते हो कि उसे सचमुच शांति मिली या नहीं।")},
@@ -1023,8 +1024,8 @@ function newGame(chapter){
   const difficulty = chapter>=3 ? chapter-2 : 0;
   S = {chapter, scene, health: chapter===1 ? 10 : 8, food:chapter>=3 ? 6 : 5,
        nerve:chapter>=3 ? 8 : 7, turn:0, inv:[], flags:{}, msg:[], hint:null,
-       hintsUsed:0, extraHints:0, hintNote:null, ending:null, prev:null, fresh:true,
-       paidHintsConsumed:0, paymentCode:null, playerId:(getPlayerId() || ""), freeHintAvailable:false, serverHintsReady:false,
+       hintsUsed:0, extraHints:Math.max(0, Number(S?.extraHints||0)), hintNote:null, ending:null, prev:null, fresh:true,
+       paidHintsConsumed:0, paymentCode:null, playerId:(getPlayerId() || ""), freeHintAvailable:true, serverHintsReady:false,
        shake:false, difficulty};
   render();
 }
@@ -1050,10 +1051,46 @@ function chapterUnlocked(chapter){
   return fetchKey("sunpur_chapter_"+chapter)==="1";
 }
 
+/* ===== NO-PAID-HINT WRONG-CHOICE RULE =====
+   After the free hint has been used, a player who has not purchased any
+   additional hints loses the run immediately on a choice marked as wrong.
+   Choices not listed here keep the existing story behavior. */
+const WRONG_CHOICES = {
+  courtyard:new Set([2]),          // go straight to the gate
+  well:new Set([0]),               // drink the well water
+  kitchen:new Set([2]),            // eat the stale rotis
+  temple:new Set([2]),             // ring the bell too early
+  c2_bank:new Set([2])             // drink from the muddy reservoir
+};
+function isWrongChoice(sceneId, idx, s){
+  if(WRONG_CHOICES[sceneId]?.has(idx)) return true;
+  const m=sceneId.match(/^c(\d+)_(start|trial|final)$/);
+  if(m){
+    const stage=m[2];
+    if(stage==="start") return idx===2;  // dangerous shortcut
+    if(stage==="trial") return idx===2;  // force your way through
+    if(stage==="final") return idx===2;  // risk one last look
+  }
+  return false;
+}
+
 function choose(sceneId, idx){
   const c = SCENES[sceneId].choices[idx];
   const s = S;
   if (c.need && c.need(s)) return;
+
+  // If the player has already used this playthrough's free hint, has no paid
+  // hints, and then chooses a known wrong option, the run ends immediately.
+  if (!s.freeHintAvailable && s.extraHints<=0 && isWrongChoice(sceneId, idx, s)) {
+    s.msg = [UI.noHintWrong];
+    s.hint = null;
+    s.hintNote = null;
+    s.ending = "end_no_hint";
+    playSound("bad");
+    render();
+    return;
+  }
+
   const prev = {health:s.health, food:s.food, nerve:s.nerve};
   s.msg = c.msg ? [c.msg] : [];
   s.hint = null; s.hintNote = null;
@@ -1110,9 +1147,9 @@ function getPlayerId(){
   return (S && S.playerId) || fetchKey("sunpur_player_id") || null;
 }
 
-// Start a chapter locally, then immediately re-read the server-side hint state.
-// The server owns the free-hint balance per chapter, so replaying a chapter
-// never creates another free hint.
+// Every time a chapter is started/replayed, newGame() gives exactly one
+// free hint for that playthrough. The server only stores the paid-hint balance;
+// replaying a chapter therefore starts its free hint at 1 again.
 async function startChapterAndSync(chapter){
   newGame(chapter);
   if(CONFIG.SUPABASE_READY){
@@ -1140,7 +1177,8 @@ async function syncHintState(){
   try{
     const data=await hintApi("state");
     if(data && data.ok){
-      S.freeHintAvailable = !!data.free_hint_available;
+      // Free hint is per playthrough and is controlled locally by newGame()/useHint().
+      // Only the paid-hint balance is server-owned and synchronized here.
       S.extraHints = Math.max(0, Number(data.paid_hints||0));
       S.serverHintsReady = true;
       return data;
@@ -1153,24 +1191,26 @@ async function syncHintState(){
 
 async function useHint(){
   const s=S;
-  if (!s.serverHintsReady){
-    const state=await syncHintState();
-    if(!state){ s.hintNote="setup"; render(); return; }
-  }
-
   let consumed=false;
+
+  // Exactly one free hint is granted every time newGame() starts/replays a chapter.
+  // It is consumed locally so the free hint resets on every new chapter playthrough.
   if(s.freeHintAvailable){
-    try{
-      const data=await hintApi("consume_free");
-      consumed=!!(data&&data.ok&&data.consumed);
-      if(consumed) s.freeHintAvailable=false;
-    }catch(e){ s.hintNote="setup"; render(); return; }
-  } else if(s.extraHints>0){
-    try{
-      const data=await hintApi("consume_paid");
-      consumed=!!(data&&data.ok&&data.consumed);
-      if(consumed) s.extraHints=Math.max(0,s.extraHints-1);
-    }catch(e){ s.hintNote="setup"; render(); return; }
+    s.freeHintAvailable=false;
+    consumed=true;
+  } else {
+    // After the free hint is used, paid hints come only from the verified server balance.
+    if(s.extraHints<=0 && !s.serverHintsReady){
+      const state=await syncHintState();
+      if(!state){ s.hintNote="setup"; render(); return; }
+    }
+    if(s.extraHints>0){
+      try{
+        const data=await hintApi("consume_paid");
+        consumed=!!(data&&data.ok&&data.consumed);
+        if(consumed) s.extraHints=Math.max(0,s.extraHints-1);
+      }catch(e){ s.hintNote="setup"; render(); return; }
+    }
   }
 
   if(!consumed){ s.hint=null; s.hintNote="out"; render(); return; }
