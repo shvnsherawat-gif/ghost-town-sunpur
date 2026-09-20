@@ -66,10 +66,8 @@ button.hintbtn{background:transparent;border-style:dashed;color:var(--nerve);tex
 .hint-plan.best{border-color:var(--accent)}
 .social-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .social-row button{flex:1 1 150px;text-align:center;font-family:system-ui,"Nirmala UI",sans-serif;font-weight:800}
-.social-facebook{border-color:#6f8cc9}.social-whatsapp{border-color:#58b878}
-.social-icon{width:20px;height:20px;display:inline-block;vertical-align:-4px;margin-right:8px}
-.social-row button{display:inline-flex;align-items:center;justify-content:center;gap:2px}
-
+.social-facebook{border-color:#6f8cc9}
+.social-whatsapp{border-color:#58b878}
 @media(max-width:520px){
   .hint-plan-grid{grid-template-columns:1fr}
   .start-card h1{font-size:28px}
@@ -1182,10 +1180,10 @@ function choose(sceneId, idx){
   else if (s.nerve<=0) next = "broken";
   if (ENDINGS[next]){
     s.ending = next; saveEnding(next);
-    if (ENDINGS[next].good) {
-      if (s.chapter===1) store("sunpur_ch2","1");
-      if (s.chapter>=2) unlockNextChapter(s.chapter);
-    }
+    // Completing ANY ending completes the chapter and unlocks the next one.
+    // The player still sees every chapter, but locked chapters cannot be started.
+    if (s.chapter===1) store("sunpur_ch2","1");
+    if (s.chapter>=2) unlockNextChapter(s.chapter);
     playSound(ENDINGS[next].good ? "success" : "bad");
   } else {
     s.scene = next;
@@ -1381,6 +1379,21 @@ function header(){
   '</span></div>'+
   '<div class="sub">'+esc(tr(UI.sub))+' · '+esc(tr(UI.ch(S.chapter)))+'</div>';
 }
+
+
+/* ---------- CHAPTER SELECTOR: all 25 chapters visible, sequentially locked ---------- */
+.chapter-panel{margin-top:14px;padding:14px;background:rgba(12,15,22,.94);border:1px solid rgba(255,255,255,.14);border-radius:14px}
+.chapter-panel h3{margin:0 0 5px;font:800 17px/1.2 system-ui,"Nirmala UI",sans-serif;color:var(--accent);text-align:center}
+.chapter-panel .chapter-help{margin:0 0 12px;text-align:center;font:12px/1.45 system-ui,"Nirmala UI",sans-serif;color:var(--mute)}
+.chapter-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.chapter-btn{width:100%;min-height:52px;padding:8px 10px;border-radius:10px;text-align:left;font:700 13px/1.25 system-ui,"Nirmala UI",sans-serif;background:#20242f;border:1px solid #333a49}
+.chapter-btn .chapter-status{display:block;font-size:11px;font-weight:600;color:var(--mute);margin-top:3px}
+.chapter-btn.unlocked{border-color:#5b667b}
+.chapter-btn.current{border-color:var(--accent);box-shadow:0 0 0 1px rgba(224,168,74,.22);background:#2a2b34}
+.chapter-btn.locked{opacity:.5;cursor:not-allowed}
+.chapter-btn.completed{border-color:#4f8b63}
+.chapter-btn .lock{float:right}
+@media(max-width:420px){.chapter-grid{grid-template-columns:1fr}}
 
 /* ---------- SOUND ENGINE: environmental, scene-aware Web Audio ---------- */
 let soundOn = true;
@@ -1645,10 +1658,6 @@ function render(){
   if (s.ending){
     if (window.updateGhostTownScene) window.updateGhostTownScene(s.scene || "midnight");
     const e = ENDINGS[s.ending];
-    const nextChapter = s.chapter < 25 ? s.chapter + 1 : null;
-    const canNext = nextChapter ? chapterUnlocked(nextChapter) : false;
-    const nextLabel = nextChapter ? L("Continue to Chapter "+nextChapter,"अध्याय "+nextChapter+" शुरू करो") : null;
-    const ch2ok = s.chapter===1 && chapterUnlocked(2);
     let stars = "";
     for (let i=0;i<5;i++) stars += '<span class="st" style="animation-delay:'+(0.25+i*0.18).toFixed(2)+'s">'+(i<e.stars?"★":"☆")+'</span>';
     app.innerHTML = header()+
@@ -1658,16 +1667,19 @@ function render(){
       (s.msg.length ? '<p class="msg">'+esc(s.msg.map(tr).join(" "))+'</p>' : '')+
       '<p class="story">'+esc(tr(e.text))+'</p>'+
       '<p class="small">'+esc(tr(UI.found(found,total)))+'</p>'+
-      '<div class="row"><button class="primary" id="again">'+esc(tr(UI.again))+'</button><button class="primary" id="share">'+esc(tr(UI.share))+'</button>'+      (ch2ok ? '<button class="primary" id="ch2">'+esc(tr(UI.next))+'</button>' : '')+      (canNext ? '<button class="primary" id="nextChapter">'+esc(nextLabel)+'</button>' : '')+      (s.chapter===2 ? '<button class="primary" id="ch1">'+esc(tr(UI.ch1))+'</button>' : '')+      '</div>'+      '<div class="social-row">'+        '<button class="social-facebook" id="share-facebook"><svg class="social-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14 8h3V4.5c-.52-.08-2.3-.2-4.3-.2-4.25 0-7.16 2.6-7.16 7.36V15H2v4h3.54v5h4.35v-5h3.62l.58-4H9.89v-2.91C9.89 10.93 10.37 8 14 8Z"/></svg><span>'+esc(tr(UI.facebook))+'</span></button>'+        '<button class="social-whatsapp" id="share-whatsapp"><svg class="social-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.5 3.5A11.93 11.93 0 0 0 12.03 0C5.43 0 .06 5.36.06 11.97c0 2.11.55 4.16 1.59 5.97L0 24l6.2-1.62a11.94 11.94 0 0 0 5.82 1.5h.01C18.64 23.88 24 18.53 24 11.93c0-3.19-1.24-6.19-3.5-8.43ZM12.03 21.9h-.01a9.9 9.9 0 0 1-5.05-1.38l-.36-.21-3.68.96.98-3.59-.23-.37a9.91 9.91 0 0 1-1.52-5.32c0-5.51 4.48-9.99 10-9.99 2.67 0 5.18 1.04 7.06 2.92a9.94 9.94 0 0 1 2.93 7.08c0 5.51-4.49 9.9-10.12 9.9Zm5.48-7.46c-.3-.15-1.77-.87-2.04-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.47-.89-.79-1.49-1.77-1.67-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.03 1.01-1.03 2.47s1.06 2.87 1.21 3.07c.15.2 2.08 3.18 5.04 4.46.7.3 1.25.49 1.68.63.71.23 1.36.2 1.87.12.57-.08 1.77-.72 2.02-1.42.25-.7.25-1.3.17-1.42-.07-.12-.27-.2-.57-.35Z"/></svg><span>'+esc(tr(UI.whatsapp))+'</span></button>'+      '</div>'+      '<p class="small" id="shared"></p></div>';
+      '<div class="row"><button class="primary" id="again">'+esc(tr(UI.again))+'</button><button class="primary" id="share">'+esc(tr(UI.share))+'</button></div>'+
+      renderChapterPanel(s.chapter)+
+      '<div class="social-row">'+
+        '<button class="social-facebook" id="share-facebook">Facebook</button>'+
+        '<button class="social-whatsapp" id="share-whatsapp">WhatsApp</button>'+
+      '</div>'+
+      '<p class="small" id="shared"></p></div>';
     bindTop();
     document.getElementById("again").onclick = ()=>startChapterAndSync(s.chapter);
     document.getElementById("share").onclick = share;
     document.getElementById("share-facebook").onclick = shareFacebook;
     document.getElementById("share-whatsapp").onclick = shareWhatsApp;
-    if (ch2ok) document.getElementById("ch2").onclick = ()=>startChapterAndSync(2);
-    const nextBtn = document.getElementById("nextChapter");
-    if (nextBtn) nextBtn.onclick = ()=>startChapterAndSync(nextChapter);
-    if (s.chapter===2) document.getElementById("ch1").onclick = ()=>startChapterAndSync(1);
+    bindChapterPanel();
     setMood(s);
     s.prev = {health:s.health, food:s.food, nerve:s.nerve}; s.fresh = false; s.shake = false;
     return;
@@ -1694,11 +1706,13 @@ function render(){
     html += '<button data-i="'+i+'"'+(hint?' disabled':'')+'>'+esc(tr(c.t))+(hint?'<span class="need">'+esc(tr(hint))+'</span>':'')+'</button>';
   });
   html += '</div></div>';
+  html += renderChapterPanel(s.chapter);
   app.innerHTML = html;
   bindTop();
   app.querySelectorAll("button[data-i]").forEach(b=>{
     b.onclick = ()=> choose(s.scene, parseInt(b.getAttribute("data-i"),10));
   });
+  bindChapterPanel();
   const hb = document.getElementById("hint"); if (hb) hb.onclick = useHint;
   app.querySelectorAll(".hint-plan").forEach(b=>{
     b.onclick = ()=>startHintPurchase(Number(b.dataset.amount), Number(b.dataset.hints));
@@ -1776,6 +1790,45 @@ if (document.addEventListener) document.addEventListener("visibilitychange", ()=
     if (soundOn && audioCtx) startAmbient();
   }
 });
+
+function chapterTitle(n){
+  if(n===1) return lang==="hi" ? "सुनपुर की रात" : "The Night of Sunpur";
+  if(n===2) return lang==="hi" ? "कालू का हिसाब" : "Kalu's Ledger";
+  const d=EXTRA_CHAPTERS.find(x=>x.n===n);
+  return d ? (lang==="hi" ? d.hi : d.en) : ("Chapter "+n);
+}
+function chapterIsCompleted(n){
+  if(n===1) return loadEndings().some(id=>/^end(?!2_)/.test(id) || id==="end_no_hint");
+  if(n===2) return loadEndings().some(id=>/^end2_/.test(id));
+  return loadEndings().some(id=>id===chapterScene(n,"truth") || id===chapterScene(n,"escape"));
+}
+function chapterStatus(n){
+  if(chapterIsCompleted(n)) return lang==="hi" ? "पूरा हुआ" : "Completed";
+  if(chapterUnlocked(n)) return lang==="hi" ? "अनलॉक" : "Unlocked";
+  return lang==="hi" ? "लॉक — पिछला अध्याय पूरा करें" : "Locked — complete the previous chapter";
+}
+function renderChapterPanel(currentChapter){
+  let h='<div class="chapter-panel"><h3>'+esc(lang==="hi" ? "अध्याय 1–25" : "Chapters 1–25")+'</h3>'+
+    '<p class="chapter-help">'+esc(lang==="hi" ? "सभी अध्याय दिखाई दे रहे हैं। अगले अध्याय का लॉक तभी खुलेगा जब पिछला अध्याय पूरा होगा।" : "All chapters are visible. Each next chapter unlocks only after you complete the previous chapter.")+'</p>'+
+    '<div class="chapter-grid">';
+  for(let n=1;n<=25;n++){
+    const unlocked=chapterUnlocked(n), completed=chapterIsCompleted(n), current=n===currentChapter;
+    const cls="chapter-btn "+(unlocked?"unlocked ":"locked ")+(completed?"completed ":"")+(current?"current":"");
+    const status=chapterStatus(n);
+    const lock=unlocked?"":"🔒 ";
+    h+='<button class="'+cls+'" data-chapter="'+n+'" '+(unlocked?"":"disabled")+'>'+
+       '<span>'+lock+esc((lang==="hi"?"अध्याय ":"Chapter ")+n+" — "+chapterTitle(n))+'</span>'+
+       '<span class="chapter-status">'+esc(status)+'</span></button>';
+  }
+  return h+'</div></div>';
+}
+function bindChapterPanel(){
+  document.querySelectorAll(".chapter-btn[data-chapter]").forEach(b=>{
+    if(b.disabled) return;
+    b.onclick=()=>startChapterAndSync(Number(b.dataset.chapter));
+  });
+}
+
 function showStartScreen(){
   const app=document.getElementById("app");
   if(!app) return;
@@ -1787,7 +1840,8 @@ function showStartScreen(){
         '<button class="lang-btn '+(lang==="en"?"active":"")+'" id="start-lang-en">English</button>'+
         '<button class="lang-btn '+(lang==="hi"?"active":"")+'" id="start-lang-hi">हिंदी</button>'+ 
       '</div>'+ 
-      '<button class="play-button" id="start-play"><span class="play-icon">▶</span>'+esc(tr(UI.play))+'</button>'+ 
+      '<button class="play-button" id="start-play"><span class="play-icon">▶</span>'+esc(tr(UI.play))+'</button>'+
+      renderChapterPanel(null)+
     '</div>'+
   '</div>';
   const en=document.getElementById("start-lang-en");
@@ -1796,6 +1850,7 @@ function showStartScreen(){
   if(en) en.onclick=()=>{lang="en";store("sunpur_lang",lang);showStartScreen();};
   if(hi) hi.onclick=()=>{lang="hi";store("sunpur_lang",lang);showStartScreen();};
   if(play) play.onclick=()=>launchGame();
+  bindChapterPanel();
 }
 
 async function launchGame(){
