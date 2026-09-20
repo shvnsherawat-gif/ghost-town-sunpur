@@ -451,32 +451,48 @@ CONFIG.SUPABASE_FN = name => CONFIG.SUPABASE_URL.replace(/\/$/, "") + "/function
 let sb = null;
 let SB_ACCESS_TOKEN = null;
 
-async function initSupabasePlayer(){
-  if(!CONFIG.SUPABASE_READY) return null;
-  if(!window.supabase || !window.supabase.createClient) throw new Error("Supabase browser SDK not loaded");
-  sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
-    auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:false }
-  });
-  let {data:{session}} = await sb.auth.getSession();
+async function ensureSupabaseSession(){
+  if(!CONFIG.SUPABASE_READY) throw new Error("supabase_not_configured");
+  if(!sb){
+    if(!window.supabase || !window.supabase.createClient) throw new Error("supabase_sdk_missing");
+    sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
+      auth: { persistSession:true, autoRefreshToken:true, detectSessionInUrl:false }
+    });
+  }
+
+  let session = null;
+  const current = await sb.auth.getSession();
+  if(current.error) throw current.error;
+  session = current.data?.session || null;
+
   if(!session){
     const r = await sb.auth.signInAnonymously();
     if(r.error) throw r.error;
-    session = r.data.session;
+    session = r.data?.session || null;
   }
-  SB_ACCESS_TOKEN = session?.access_token || null;
-  sb.auth.onAuthStateChange((_event, session2)=>{ SB_ACCESS_TOKEN = session2?.access_token || null; });
-  return session?.user || null;
+
+  if(!session?.access_token) throw new Error("no_access_token");
+  SB_ACCESS_TOKEN = session.access_token;
+  return session;
+}
+
+async function initSupabasePlayer(){
+  const session = await ensureSupabaseSession();
+  if(!sb.__sunpurAuthListener){
+    sb.__sunpurAuthListener = true;
+    sb.auth.onAuthStateChange((_event, session2)=>{
+      SB_ACCESS_TOKEN = session2?.access_token || null;
+    });
+  }
+  return session.user || null;
 }
 
 async function authHeaders(extra={}){
-  if(CONFIG.SUPABASE_READY && sb){
-    const {data:{session}} = await sb.auth.getSession();
-    SB_ACCESS_TOKEN = session?.access_token || SB_ACCESS_TOKEN;
-  }
+  const session = await ensureSupabaseSession();
   return Object.assign({
     "Content-Type":"application/json",
     "apikey":CONFIG.SUPABASE_ANON_KEY,
-    "Authorization":"Bearer "+(SB_ACCESS_TOKEN || CONFIG.SUPABASE_ANON_KEY)
+    "Authorization":"Bearer "+session.access_token
   }, extra);
 }
 
@@ -1094,6 +1110,17 @@ function getPlayerId(){
   return (S && S.playerId) || fetchKey("sunpur_player_id") || null;
 }
 
+// Start a chapter locally, then immediately re-read the server-side hint state.
+// newGame() intentionally resets the local UI state, so chapter/replay buttons
+// must sync afterward to avoid showing a stale "1 left" hint count.
+async function startChapterAndSync(chapter){
+  newGame(chapter);
+  if(CONFIG.SUPABASE_READY){
+    await syncHintState();
+    render();
+  }
+}
+
 async function hintApi(action, orderId){
   if (!CONFIG.SUPABASE_READY) throw new Error("setup");
   const headers = await authHeaders(orderId ? {"x-sunpur-order-id":orderId} : {});
@@ -1520,12 +1547,12 @@ function render(){
       (s.chapter===2 ? '<button class="primary" id="ch1">'+esc(tr(UI.ch1))+'</button>' : '')+
       '</div><p class="small" id="shared"></p></div>';
     bindTop();
-    document.getElementById("again").onclick = ()=>newGame(s.chapter);
+    document.getElementById("again").onclick = ()=>startChapterAndSync(s.chapter);
     document.getElementById("share").onclick = share;
-    if (ch2ok) document.getElementById("ch2").onclick = ()=>newGame(2);
+    if (ch2ok) document.getElementById("ch2").onclick = ()=>startChapterAndSync(2);
     const nextBtn = document.getElementById("nextChapter");
-    if (nextBtn) nextBtn.onclick = ()=>newGame(nextChapter);
-    if (s.chapter===2) document.getElementById("ch1").onclick = ()=>newGame(1);
+    if (nextBtn) nextBtn.onclick = ()=>startChapterAndSync(nextChapter);
+    if (s.chapter===2) document.getElementById("ch1").onclick = ()=>startChapterAndSync(1);
     setMood(s);
     s.prev = {health:s.health, food:s.food, nerve:s.nerve}; s.fresh = false; s.shake = false;
     return;
