@@ -1020,48 +1020,74 @@ const chapterItem = n => "Clue "+n;
 const chapterScene = (n,k) => "c"+n+"_"+k;
 
 function buildExtraChapters(){
+  /* Progressive chapter design: every chapter has its own verbs, hazards and
+     puzzle logic. Later chapters require more preparation and punish guessing. */
+  const designs = {
+    3:{a:['Check the conductor’s ledger','Follow the child-sized footprints','Inspect the emergency brake','Stay aboard and count the stops'],b:['Match the future time to the ticket','Ask the conductor the name only Sunpur knows','Pull the emergency cord at the marked mile','Ignore the false destination and watch the window'],c:['Board the rear carriage','Leave at the silent crossing','Hand over the ticket','Wait for the bell'],cost:2},
+    4:{a:['Walk upstream toward the floating lantern','Anchor yourself to the old ferry','Search the reeds for a dry object','Cross where the current reverses'],b:['Read the river marks in reverse','Follow the lantern without touching it','Use the ferry rope as a measuring line','Throw a stone and count the ripples'],c:['Enter the water','Cross on the broken bridge','Follow the dry footprints','Wait for the river to stop'],cost:2},
+    5:{a:['Enter the abandoned post office','Follow the red thread','Search the bell tower stairs','Listen at the sealed door'],b:['Compare the letters by handwriting','Follow the thread only where it is tied twice','Read the names in the mailbox','Burn the threatening letter'],c:['Open the sealed door','Return the letters to their boxes','Follow the final red knot','Leave before the postman arrives'],cost:3},
+    6:{a:['Climb the watchtower','Search the stopped clock','Inspect the keeper’s coat','Read the warning painted on the stairs'],b:['Set the clock to the missing minute','Search the coat pocket for a date','Count the tower bells','Break the clock face'],c:['Ring once','Set the final time','Wait for the shadow to align','Jump down the stairs'],cost:3},
+    7:{a:['Enter the buried station','Search the signal room','Follow the rails into darkness','Inspect the timetable'],b:['Reconstruct the cancelled train','Switch the signal to red','Match the platform number to the clue','Follow the phantom whistle'],c:['Board the empty carriage','Stay on the platform','Pull the signal lever','Run into the tunnel'],cost:3},
+    8:{a:['Enter the forest shrine','Mark your route on a tree','Follow the bells between the trees','Search the hunter’s shelter'],b:['Match the bell sequence','Use the marked trees to triangulate','Follow the freshest footprint','Answer the voice in the dark'],c:['Take the shrine path','Break the bell rope','Follow the animal trail','Wait until dawn'],cost:4},
+    9:{a:['Search the locked clinic','Inspect the patient board','Follow the wheelchair tracks','Check the medicine cabinet'],b:['Rebuild the patient timeline','Match the missing bed number','Read the prescription backwards','Take the unlabelled medicine'],c:['Open Ward 3','Leave through the ambulance bay','Follow the wheelchair','Stay with the last patient'],cost:4},
+    10:{a:['Enter the flooded school','Search the teacher’s desk','Follow the chalk arrows','Inspect the attendance register'],b:['Complete the missing attendance line','Trace the arrows without skipping a room','Compare dates on the blackboard','Erase the warning'],c:['Open the classroom door','Cross the flooded corridor','Answer the roll call','Hide under the desk'],cost:4},
+    11:{a:['Enter the mirror house','Cover the nearest mirror','Count the reflections','Search the room without looking up'],b:['Identify the reflection that blinks late','Cover the mirror marked with ash','Follow the reflection’s pointing hand','Break every mirror'],c:['Open the reflection door','Step through the cracked mirror','Turn away and walk','Stay until the reflection speaks'],cost:5},
+    12:{a:['Climb the silent hill','Inspect the radio mast','Search the survey camp','Follow the repeating radio pulse'],b:['Tune to the pulse interval','Compare three survey coordinates','Decode the numbers as bearings','Transmit your name'],c:['Follow the bearing','Cut the radio wire','Wait for the next pulse','Climb above the fog'],cost:5},
+    13:{a:['Enter the underground archive','Search Box 13','Follow the ventilation markings','Read the archivist’s wall notes'],b:['Arrange the files by date, not name','Find the missing page number','Compare two identical signatures','Take the sealed file'],c:['Open the sealed archive','Leave the file behind','Read the forbidden page','Follow the ventilation shaft'],cost:5},
+    14:{a:['Cross the ash field','Search the burned carts','Follow the footprints that stop','Inspect the blackened milestone'],b:['Reconstruct the direction of the fire','Measure the footprints','Read the milestone upside down','Touch the warm ash'],c:['Cross the field','Follow the smoke','Wait for the ash to cool','Run toward the milestone'],cost:6},
+    15:{a:['Enter the village beneath the village','Descend the stone steps','Search the dry well','Follow the underground bell'],b:['Match the lower village to Sunpur','Count doors before turning','Find the house with no shadow','Ring the bell underground'],c:['Open the buried house','Return to the surface','Follow the shadowless doorway','Take the lower road'],cost:6},
+    16:{a:['Enter the courthouse ruins','Read the abandoned case board','Search the evidence room','Follow the judge’s footprints'],b:['Put the evidence in chronological order','Find the missing witness statement','Compare the two verdict dates','Sign your own name'],c:['Open the evidence room','Take the unsigned verdict','Follow the judge','Destroy the false record'],cost:6},
+    17:{a:['Cross the frozen reservoir','Search the ice markers','Follow the trapped lantern','Listen beneath the ice'],b:['Count the cracks between markers','Match the lantern flashes','Use the safest crack pattern','Break the ice to look below'],c:['Cross quickly','Follow the lantern','Stay on solid ground','Call into the ice'],cost:7},
+    18:{a:['Enter the house with no windows','Search the locked rooms','Follow the sound behind the wall','Inspect the floorboards'],b:['Map the rooms by sound','Find the door that has no handle','Count knocks from the other side','Open every locked room'],c:['Enter the handleless door','Break the floorboards','Follow the knocking','Leave the house'],cost:7},
+    19:{a:['Reach the hilltop cemetery','Read the newest grave','Follow the candle trail','Search the caretaker’s shed'],b:['Match names to dates','Count candles that are still warm','Find the grave with no stone','Read the caretaker’s final note'],c:['Open the unmarked grave','Follow the candle trail','Wait beside the gate','Take the caretaker’s key'],cost:7},
+    20:{a:['Enter the town with no people','Search the lit shop','Follow the moving shadow','Inspect the public clock'],b:['Determine which clock is real','Track the shadow between buildings','Read the shop ledger','Take the lit sign down'],c:['Enter the clock tower','Follow the shadow','Wait in the shop','Turn the public clock'],cost:8},
+    21:{a:['Open the black notebook','Compare its pages to your journey','Search the room described on page one','Refuse to read the final page'],b:['Test whether the next sentence is true','Change one detail and observe','Find the page describing this room','Read the final page aloud'],c:['Follow the written instruction','Close the notebook','Write your own ending','Burn the notebook'],cost:8},
+    22:{a:['Shelter under the storm lantern','Follow the upward rain','Search the flooded temple','Listen for the bell between thunderclaps'],b:['Speak one truth to keep the lantern lit','Count thunder between bell rings','Use the rain direction as a compass','Lie to test the lantern'],c:['Cross during the lightning gap','Stay beneath the lantern','Follow the bell','Enter the flooded temple'],cost:8},
+    23:{a:['Enter the second Sunpur','Find your living counterpart','Search the family register','Follow the road that does not exist'],b:['Compare the two village maps','Ask one question without naming yourself','Match the family dates','Warn the living villagers'],c:['Tell them the truth','Leave without warning them','Swap the two registers','Follow your counterpart'],cost:9},
+    24:{a:['Follow Kalu to the unseen door','Search the place behind the bell','Ask what he did at 03:14','Inspect the master key'],b:['Demand the missing name','Compare Kalu’s account with the logbook','Use the master key only once','Ask why he chose you'],c:['Open the impossible door','Refuse Kalu’s offer','Ring the bell three times','Give him the master key'],cost:9},
+    25:{a:['Lay every clue on the final stone','Return to the first gate','Follow the last bell','Search for the road home'],b:['Arrange every clue in chronological order','Choose which memory to sacrifice','Ring the bell only after the sun rises','Read the first clue again'],c:['Leave Sunpur forever','Carry the record into the world','Stay until the final bell','Open the last gate'],cost:10}
+  };
   EXTRA_CHAPTERS.forEach(d=>{
-    const n=d.n;
-    const difficulty=n-2;
-    const item=chapterItem(n), start=chapterScene(n,"start"), trial=chapterScene(n,"trial"), final=chapterScene(n,"final");
-    const truthEnd=chapterScene(n,"truth"), escapeEnd=chapterScene(n,"escape"), cost=difficulty;
+    const n=d.n, cfg=designs[n]||designs[25], item=chapterItem(n);
+    const start=chapterScene(n,'start'), trial=chapterScene(n,'trial'), final=chapterScene(n,'final');
+    const truthEnd=chapterScene(n,'truth'), escapeEnd=chapterScene(n,'escape');
+    const c='c'+n+'_', cost=cfg.cost;
     SCENES[start]={
-      title:L("Chapter "+n+": "+d.en,"अध्याय "+n+": "+d.hi),
-      text:s=>L(d.intro_en+" A "+d.clue_en+" is waiting nearby."," "+d.intro_hi+" पास ही "+d.clue_desc_hi+" मौजूद है।"),
+      title:L('Chapter '+n+': '+d.en,'अध्याय '+n+': '+d.hi),
+      text:s=>L(d.intro_en+' The '+d.clue_en+' is close, but reaching it will cost you something. By this point, guessing is dangerous.',d.intro_hi+' '+d.clue_desc_hi+' पास है, लेकिन वहाँ पहुँचना आसान नहीं। अब अनुमान लगाना ख़तरनाक है।'),
       choices:[
-        {t:L("Take the clue","सुराग उठा लो"),once:true,give:item,set:"c"+n+"_clue",fx:{nerve:1},msg:L("You take it. A hidden detail becomes visible.","तुम उसे उठा लेते हो। एक छिपी हुई बात दिखाई देने लगती है।"),to:trial},
-        {t:L("Search for a second clue","दूसरा सुराग खोजो"),once:true,set:"c"+n+"_mark",fx:{food:-1},msg:L("You find a pattern scratched where nobody would normally look.","जहाँ कोई सामान्यतः नहीं देखेगा, वहाँ एक पैटर्न खुदा मिलता है।"),to:start},
-        {t:L("Take the dangerous shortcut","खतरनाक छोटा रास्ता चुनो"),once:true,fx:{health:-Math.min(6,cost),nerve:-1},msg:L("The shortcut works—but something notices you.","रास्ता छोटा है—लेकिन किसी ने तुम्हें देख लिया है।"),to:trial},
-        {t:L("Wait and listen","रुको और सुनो"),once:true,fx:{nerve:1},msg:L("The silence gives you one useful rhythm.","सन्नाटा तुम्हें एक काम की लय देता है।"),to:start}
+        {t:L(cfg.a[0],cfg.a[0]),once:true,give:item,set:c+'clue',fx:{nerve:1},msg:L('You find the clue—but it contains a deliberate false detail.','तुम सुराग पा लेते हो—लेकिन उसमें जानबूझकर एक झूठी बात छिपी है।'),to:trial},
+        {t:L(cfg.a[1],cfg.a[1]),once:true,set:c+'mark',fx:{food:-1},msg:L('The second clue costs time and food, but gives you a pattern.','दूसरा सुराग समय और भोजन लेता है, लेकिन एक पैटर्न देता है।'),to:start},
+        {t:L(cfg.a[2],cfg.a[2]),once:true,fx:{health:-Math.min(7,cost),nerve:-1},msg:L('You force progress. It works, but the place becomes more hostile.','तुम ज़ोर लगाकर आगे बढ़ते हो। रास्ता खुलता है, लेकिन जगह और ख़तरनाक हो जाती है।'),to:trial},
+        {t:L(cfg.a[3],cfg.a[3]),once:true,fx:{nerve:1,food:-1},msg:L('Waiting reveals a timing clue—but the window is closing.','रुकने से समय का एक सुराग मिलता है—लेकिन मौका बंद हो रहा है।'),to:start}
       ]
     };
     SCENES[trial]={
-      title:L("The Puzzle","पहेली"),
-      text:s=>L("The "+d.clue_en+" carries the first clue. "+d.clue_desc_en+" Put the clues together before the place changes again."," "+d.clue_en+" में पहला सुराग है। "+d.clue_desc_hi+" जगह फिर बदलने से पहले दोनों को जोड़ो।"),
+      title:L('Chapter '+n+' — The Hard Clue','अध्याय '+n+' — कठिन सुराग'),
+      text:s=>L('The '+d.clue_en+' is only half the answer. The second clue contradicts it unless you interpret the order correctly. One wrong inference can cost health, food, or nerve.',d.clue_en+' सिर्फ़ आधा जवाब है। दूसरा सुराग उससे विरोध करता है जब तक तुम सही क्रम न समझो। एक गलत अनुमान से सेहत, भोजन या हिम्मत जा सकती है।'),
       choices:[
-        {t:L("Decode the first clue","पहला सुराग समझो"),once:true,need:needItem(item),set:"c"+n+"_decoded",fx:{nerve:1},msg:L("The clue makes sense—but only halfway.","सुराग समझ आता है—लेकिन सिर्फ़ आधा।"),to:trial},
-        {t:L("Trace the hidden pattern","छिपे पैटर्न को समझो"),once:true,need:s=>s.flags["c"+n+"_mark"]?null:L("needs: the second clue","चाहिए: दूसरा सुराग"),set:"c"+n+"_pattern",fx:{food:-1,nerve:1},msg:L("The pattern points toward a hidden route.","पैटर्न एक छिपे रास्ते की ओर इशारा करता है।"),to:trial},
-        {t:L("Force your way through","ज़ोर लगाकर रास्ता बनाओ"),once:true,fx:{health:-Math.min(6,cost),food:-1},msg:L("You get through, but lose something important in the struggle.","तुम निकल जाते हो, लेकिन संघर्ष में कुछ ज़रूरी खो देते हो।"),to:trial},
-        {t:L("Step back and remember Sunpur","पीछे हटकर सुनपुर को याद करो"),once:true,fx:{nerve:2},msg:L("The memory of Kalu's bell gives you a final connection.","कालू की घंटी की याद आख़िरी कड़ी दे देती है।"),to:final}
+        {t:L(cfg.b[0],cfg.b[0]),once:true,need:needItem(item),set:c+'decoded',fx:{nerve:1,food:-1},msg:L('You decode the first layer. A second meaning is still hidden.','पहली परत समझ आती है। दूसरी परत अभी छिपी है।'),to:trial},
+        {t:L(cfg.b[1],cfg.b[1]),once:true,need:s=>s.flags[c+'mark']?null:L('needs: the second clue','चाहिए: दूसरा सुराग'),set:c+'pattern',fx:{nerve:1,food:-1},msg:L('The pattern exposes a decoy. You avoid one trap.','पैटर्न एक झूठा सुराग पकड़ लेता है। तुम एक जाल से बच जाते हो।'),to:trial},
+        {t:L(cfg.b[2],cfg.b[2]),once:true,fx:{health:-Math.min(6,cost),nerve:-2},msg:L('You test the clue physically. The answer is real, but the cost is severe.','तुम सुराग को सीधे आज़माते हो। जवाब सही है, लेकिन कीमत भारी पड़ती है।'),to:trial},
+        {t:L(cfg.b[3],cfg.b[3]),once:true,fx:{food:-2,nerve:2},msg:L('You uncover the chapter’s hidden rule. Now you can attempt the final door.','तुम अध्याय का छिपा नियम समझ लेते हो। अब आख़िरी दरवाज़ा आज़मा सकते हो।'),to:final}
       ]
     };
     SCENES[final]={
-      title:L("The Hidden Door","छिपा हुआ दरवाज़ा"),
-      text:s=>L("The two clues now point to the same answer. You can leave safely—or risk everything to learn why this mystery keeps following you.","दोनों सुराग अब एक ही जवाब की ओर इशारा कर रहे हैं। तुम सुरक्षित निकल सकते हो—या यह जानने के लिए सब कुछ दाँव पर लगा सकते हो कि यह रहस्य तुम्हारा पीछा क्यों कर रहा है।"),
+      title:L('Chapter '+n+' — The Last Decision','अध्याय '+n+' — आख़िरी निर्णय'),
+      text:s=>L('Three routes remain. Only one is fully informed. The safe route preserves your resources but leaves the mystery unresolved; the risky route may work even without every clue.', 'तीन रास्ते बचे हैं। केवल एक पूरी तरह समझ में आया है। सुरक्षित रास्ता संसाधन बचाता है, लेकिन रहस्य अधूरा छोड़ता है; जोखिम वाला रास्ता सारे सुरागों के बिना भी काम कर सकता है।'),
       choices:[
-        {t:L("Open the hidden way and learn the truth","छिपा रास्ता खोलकर सच जानो"),need:s=>(s.flags["c"+n+"_decoded"]&&s.flags["c"+n+"_pattern"])?null:L("needs: both decoded clues","चाहिए: दोनों समझे हुए सुराग"),set:"c"+n+"_solved",fx:{nerve:-1},to:truthEnd},
-        {t:L("Take the safe way out","सुरक्षित रास्ते से निकल जाओ"),to:escapeEnd},
-        {t:L("Risk one last look","आख़िरी बार जोखिम लो"),fx:{health:-Math.min(6,cost),nerve:-1},to:s=>(s.flags["c"+n+"_solved"]?truthEnd:escapeEnd)}
+        {t:L(cfg.c[0],cfg.c[0]),need:s=>(s.flags[c+'decoded']&&s.flags[c+'pattern'])?null:L('needs: both clue layers','चाहिए: दोनों सुराग परतें'),set:c+'solved',fx:{health:-1,nerve:-1},to:truthEnd},
+        {t:L(cfg.c[1],cfg.c[1]),to:escapeEnd},
+        {t:L(cfg.c[2],cfg.c[2]),fx:{health:-Math.min(7,cost),food:-2,nerve:-2},to:s=>(s.flags[c+'solved']?truthEnd:escapeEnd)},
+        {t:L(cfg.c[3],cfg.c[3]),need:s=>s.flags[c+'decoded']?null:L('needs: decoded first clue','चाहिए: पहला सुराग समझना'),fx:{food:-1},to:s=>(s.flags[c+'pattern']?truthEnd:escapeEnd)}
       ]
     };
-    ENDINGS[truthEnd]={stars:5,title:L("Chapter "+n+" — The Missing Piece","अध्याय "+n+" — गायब कड़ी"),text:L(
-      d.intro_en+" You fit the clues together and uncover the truth hidden behind the "+d.clue_en+". The discovery does not end the mystery—it points directly to the next place. Before you can breathe, you hear the same bell that first called you into Sunpur.",
-      d.intro_hi+" तुम सुराग जोड़कर "+d.clue_en+" के पीछे छिपा सच खोज लेते हो। रहस्य खत्म नहीं होता—वह सीधे अगली जगह की ओर इशारा करता है। साँस लेने से पहले वही घंटी सुनाई देती है जिसने तुम्हें पहली बार सुनपुर बुलाया था।"
-    ),good:true};
-    ENDINGS[escapeEnd]={stars:3,title:L("Chapter "+n+" — Still Running","अध्याय "+n+" — रहस्य अभी बाकी है"),text:L(
-      "You escape the immediate danger, but the unanswered clue follows you. On the road ahead, you notice a mark identical to the one from Sunpur. Whatever is happening, it is not over.",
-      "तुम तत्काल खतरे से निकल जाते हो, लेकिन अनसुलझा सुराग तुम्हारा पीछा करता है। आगे की सड़क पर तुम्हें सुनपुर जैसा ही निशान दिखता है। जो भी हो रहा है, वह अभी खत्म नहीं हुआ।"
-    ),good:true};
+    ENDINGS[truthEnd]={stars:5,title:L('Chapter '+n+' — The Truth Costs Something','अध्याय '+n+' — सच की कीमत'),text:L(
+      d.intro_en+' You survive the difficult route and correctly connect the '+d.clue_en+' with the hidden pattern. The answer explains one part of Sunpur, but it also reveals a harder question waiting in Chapter '+(n<25?n+1:n)+'. You leave with the truth—and less certainty than before.',
+      d.intro_hi+' कठिन रास्ता पार करके तुम '+d.clue_en+' और छिपे पैटर्न को सही तरह जोड़ देते हो। जवाब सुनपुर का एक हिस्सा समझाता है, लेकिन अगला कठिन सवाल अध्याय '+(n<25?n+1:n)+' में इंतज़ार कर रहा है। सच मिल गया है—पर यक़ीन पहले से कम है।'),good:true};
+    ENDINGS[escapeEnd]={stars:3,title:L('Chapter '+n+' — The Unfinished Answer','अध्याय '+n+' — अधूरा जवाब'),text:L(
+      'You escape with your life and some of your supplies. Behind you, the clue changes before you can read it again. The next chapter begins with less certainty and a higher price for mistakes.',
+      'तुम जान और कुछ सामान बचाकर निकल जाते हो। पीछे सुराग बदल जाता है, इससे पहले कि तुम उसे फिर पढ़ सको। अगला अध्याय कम यक़ीन और गलतियों की ज़्यादा कीमत के साथ शुरू होगा।'),good:true};
   });
 }
 buildExtraChapters();
